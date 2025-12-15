@@ -11,7 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
     libsm6 \
     libxext6 \
+    libxext6 \
     libgl1 \
+    libmagic1 \
     curl \
     build-essential \
     chromium \

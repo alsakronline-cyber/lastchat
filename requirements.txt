@@ -20,6 +20,7 @@ transformers==4.37.2
 
 
 # Image & PDF Processing
+python-magic==0.4.27 
 pillow==10.2.0
 pytesseract==0.3.10
 pypdf2==3.0.1
