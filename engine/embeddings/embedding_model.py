@@ -43,7 +43,7 @@ class EmbeddingModel:
                 except Exception as e:
                     logger.warning(f"Could not list files: {e}")
 
-                self.model = SentenceTransformer(local_path)
+                self.model = SentenceTransformer(local_path, local_files_only=True)
             else:
                  # 2. Fallback to Download (Will fail in offline Codespace if not cached)
                 logger.info(f"Local model not found at {local_path}. Attempting to download: {self.model_name}...")
