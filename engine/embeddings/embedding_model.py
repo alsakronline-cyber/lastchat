@@ -30,10 +30,19 @@ class EmbeddingModel:
         try:
             # 1. Try Local Path (Docker/Deploy friendly)
             # Assumes model_data is a sibling directory to the directory containing this script
-            local_path = os.path.join(os.path.dirname(__file__), "..", "model_data", self.model_name)
+            # Normalize path to remove '..' which might confuse the library
+            raw_path = os.path.join(os.path.dirname(__file__), "..", "model_data", self.model_name)
+            local_path = os.path.abspath(raw_path)
             
             if os.path.exists(local_path):
                 logger.info(f"Loading embedding model from local cache: {local_path}...")
+                # Debug: List files to ensure mapped correctly
+                try:
+                    files = os.listdir(local_path)
+                    logger.info(f"Files in model dir: {files}")
+                except Exception as e:
+                    logger.warning(f"Could not list files: {e}")
+
                 self.model = SentenceTransformer(local_path)
             else:
                  # 2. Fallback to Download (Will fail in offline Codespace if not cached)
