@@ -110,13 +110,13 @@ services:
       - ollama_models:/root/.ollama
     networks:
       - automation-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
     # Note: GPU section is optional, remove if CPU-only host
 
   # 5. API Gateway & Application
