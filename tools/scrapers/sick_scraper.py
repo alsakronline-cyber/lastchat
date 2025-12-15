@@ -146,87 +146,92 @@ class SickScraper(BaseScraper):
 
         return [product]
 
-    def scrape_category(self, category_url: str, max_pages=1):
+    def scrape_category(self, start_url: str, max_products=10):
         """
-        Iterate through category pages. 
-        SICK structure: Category -> Family (/c/) -> Product Variant (/p/)
+        Crawls the category using BFS to find products.
+        Structure: Category -> ... -> Family -> Product
         """
         all_products = []
+        visited = set()
+        queue = [(start_url, 0)] # (url, depth)
         
-        # 1. Fetch the main category page
-        logger.info(f"Fetching category: {category_url}")
-        content = self.fetch(category_url)
-        if not content:
-            return []
-
-        soup = BeautifulSoup(content, 'html.parser')
+        # Max depth to prevent infinite crawling
+        MAX_DEPTH = 4 
         
-        # 2. Identify links
-        # We look for both /p/ (direct product) and /c/ (sub-category/family)
-        # SICK usually lists Families (/c/) on high level pages
-        
-        # Primary selector for cards
-        card_links = soup.select('ui-category-record-card a')
-        if not card_links:
-            # Fallback generic
-            card_links = soup.find_all('a', href=lambda h: h and ('/products/' in h) and ('/c/' in h or '/p/' in h))
-
-        product_urls = set()
-        family_urls = set()
-
-        for link in card_links:
-            href = link.get('href')
-            if not href: continue
+        while queue and len(all_products) < max_products:
+            current_url, depth = queue.pop(0)
             
-            # Normalize URL
-            if not href.startswith('http'):
-                 href = "https://www.sick.com" + href if href.startswith('/') else "https://www.sick.com/" + href
+            if current_url in visited:
+                continue
+            visited.add(current_url)
             
-            if '/p/' in href:
-                product_urls.add(href)
-            elif '/c/' in href:
-                family_urls.add(href)
+            if depth > MAX_DEPTH:
+                continue
 
-        logger.info(f"Found {len(product_urls)} direct products and {len(family_urls)} families/subcategories")
+            logger.info(f"Crawling [Depth {depth}]: {current_url}")
+            content = self.fetch(current_url)
+            if not content:
+                continue
+                
+            soup = BeautifulSoup(content, 'html.parser')
+            
+            # 1. Identify Links (Sub-categories/Families OR Products)
+            # Use specific selectors for cards if possible, mostly for /c/ links
+            card_links = soup.select('ui-category-record-card a')
+            if not card_links:
+                # Fallbck for lists
+                card_links = soup.find_all('a', href=lambda h: h and ('/products/' in h) and ('/c/' in h or '/p/' in h))
 
-        # 3. If we found DIRECT products, scrape them
-        for p_url in list(product_urls)[:5]: # Limit
-            products = self._scrape_product_page(p_url)
-            all_products.extend(products)
-            if products: 
-                 time.sleep(1)
+            # Also verify if we are on a table view (product variants list)
+            # Sometimes a family page lists products in a table, not cards
+            table_links = soup.select('table a.product-link') # Hypothetical
+            if table_links:
+                 card_links.extend(table_links)
 
-        # 4. If we found FAMILIES, drill down (depth 1) to find products inside them
-        # Only do this if we didn't find enough direct products, or to be thorough
-        if family_urls and len(all_products) < 5:
-            logger.info("Drilling down into families to find products...")
-            for f_url in list(family_urls)[:3]: # Limit families to verify first
-                logger.info(f"Inspecting Family: {f_url}")
-                f_content = self.fetch(f_url)
-                if not f_content: continue
+            # 2. Process Links
+            found_p_links = []
+            found_c_links = []
+
+            for link in card_links:
+                href = link.get('href')
+                if not href: continue
                 
-                f_soup = BeautifulSoup(f_content, 'html.parser')
-                # On a family page, we look specifically for /p/ links
-                # determining the selector might be tricky, let's try a broad search for /p/ first
-                p_links = f_soup.find_all('a', href=lambda h: h and '/p/' in h)
+                # Cleanup URL
+                if not href.startswith('http'):
+                    href = "https://www.sick.com" + href if href.startswith('/') else "https://www.sick.com/" + href
                 
-                found_new_p_urls = set()
-                for pl in p_links:
-                    phref = pl.get('href')
-                    if not phref: continue
-                    if not phref.startswith('http'):
-                         phref = "https://www.sick.com" + phref if phref.startswith('/') else "https://www.sick.com/" + phref
-                    found_new_p_urls.add(phref)
+                # Filter out garbage
+                if 'javascript:' in href or '#' in href or 'mailto:' in href:
+                    continue
+
+                if '/p/' in href:
+                    found_p_links.append(href)
+                elif '/c/' in href:
+                    found_c_links.append(href)
+            
+            # 3. If we found products, scrape them!
+            unique_p_links = list(set(found_p_links))
+            logger.info(f"  Found {len(unique_p_links)} products and {len(found_c_links)} sub-categories")
+            
+            for p_url in unique_p_links:
+                if len(all_products) >= max_products: break
                 
-                logger.info(f"  Found {len(found_new_p_urls)} variants in family")
-                
-                for p_url in list(found_new_p_urls)[:2]: # Limit variants per family
-                    products = self._scrape_product_page(p_url)
-                    all_products.extend(products)
-                    if len(all_products) >= 10: break # Overall safety limit
-                    time.sleep(1)
-                
-                if len(all_products) >= 10: break
+                if p_url not in visited:
+                    p_data = self._scrape_product_page(p_url)
+                    if p_data:
+                        all_products.extend(p_data)
+                        visited.add(p_url)
+                        time.sleep(1) 
+            
+            # 4. If we didn't fill our quota and have sub-categories, add them to queue
+            # Prioritize crawling deeper
+            if len(all_products) < max_products:
+                for c_url in found_c_links:
+                    if c_url not in visited:
+                        # Add to queue with incremented depth
+                        queue.append((c_url, depth + 1))
+            
+            time.sleep(1)
 
         return all_products
 
