@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import List, Union
 from sentence_transformers import SentenceTransformer
 import numpy as np
