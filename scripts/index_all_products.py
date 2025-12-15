@@ -14,12 +14,12 @@ from engine.embeddings.search_engine import SearchEngine
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Database config
+# Database config (Defaults match docker-compose.yml)
 DB_USER = os.getenv("POSTGRES_USER", "postgres")
-DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
+DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "secure_password")
 DB_HOST = os.getenv("POSTGRES_HOST", "postgres")
 DB_PORT = os.getenv("POSTGRES_PORT", "5432")
-DB_NAME = os.getenv("POSTGRES_DB", "automation_db")
+DB_NAME = os.getenv("POSTGRES_DB", "automation_engine")
 
 DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
