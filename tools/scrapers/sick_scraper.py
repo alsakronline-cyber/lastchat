@@ -154,15 +154,31 @@ class SickScraper(BaseScraper):
         content = self.fetch(category_url)
         if content:
              # Find product links
+            # Find product links - Updated for new SICK site structure
             soup = BeautifulSoup(content, 'html.parser')
-            links = soup.find_all('a', class_='product-link')
+            
+            # primary selector based on user provided HTML
+            links = soup.select('ui-category-record-card a')
+            
+            # fallback: look for any links containing '/products/' and '/c/' which usually denote product families/items
+            if not links:
+                logger.info("Primary selector failed, trying generic href filter")
+                links = soup.find_all('a', href=lambda h: h and '/products/' in h and '/c/' in h)
+
             product_urls = set()
             for link in links:
                 href = link.get('href')
                 if href:
                     if not href.startswith('http'):
-                        href = "https://www.sick.com" + href
-                    product_urls.add(href)
+                        # Handle relative URLs properly, accounting for potential existing prefixes
+                        if href.startswith('/'):
+                            href = "https://www.sick.com" + href
+                        else:
+                             href = "https://www.sick.com/" + href
+                    
+                    # exclude unlikely matches (like filters/facets if they get caught)
+                    if 'javascript:' not in href and '#' not in href:
+                        product_urls.add(href)
             
             logger.info(f"Found {len(product_urls)} products in category")
             
