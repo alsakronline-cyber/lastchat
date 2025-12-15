@@ -25,10 +25,20 @@ class EmbeddingModel:
         self._load_model()
 
     def _load_model(self):
-        """Loads the SentenceTransformer model."""
+        """Loads the SentenceTransformer model, checking for local files first."""
         try:
-            logger.info(f"Loading embedding model: {self.model_name}...")
-            self.model = SentenceTransformer(self.model_name)
+            # 1. Try Local Path (Docker/Deploy friendly)
+            # Assumes model_data is a sibling directory to the directory containing this script
+            local_path = os.path.join(os.path.dirname(__file__), "..", "model_data", self.model_name)
+            
+            if os.path.exists(local_path):
+                logger.info(f"Loading embedding model from local cache: {local_path}...")
+                self.model = SentenceTransformer(local_path)
+            else:
+                 # 2. Fallback to Download (Will fail in offline Codespace if not cached)
+                logger.info(f"Local model not found at {local_path}. Attempting to download: {self.model_name}...")
+                self.model = SentenceTransformer(self.model_name)
+            
             logger.info("Embedding model loaded successfully.")
         except Exception as e:
             logger.error(f"Failed to load embedding model {self.model_name}: {e}")
