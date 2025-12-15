@@ -264,6 +264,54 @@ class SickScraper(BaseScraper):
         if self.driver:
             self.driver.quit()
 
+    def save_products(self, products: List[Dict]):
+        """Save products to PostgreSQL database"""
+        import os
+        from sqlalchemy import create_engine, text
+        import json
+
+        # Reuse env vars logic or defaults
+        DB_USER = os.getenv("POSTGRES_USER", "postgres")
+        DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "secure_password")
+        DB_HOST = os.getenv("POSTGRES_HOST", "postgres")
+        DB_PORT = os.getenv("POSTGRES_PORT", "5432")
+        DB_NAME = os.getenv("POSTGRES_DB", "automation_engine")
+        
+        DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        
+        try:
+            engine = create_engine(DATABASE_URL)
+            with engine.connect() as conn:
+                for p in products:
+                    # Basic upsert logic
+                    # We assume sku_id is unique enough or we use product names
+                    # schema: id, sku_id, product_name, description, specifications, images, datasheet_url, category, ...
+                    
+                    stmt = text("""
+                        INSERT INTO products (sku_id, product_name, description, specifications, images, datasheet_url, category)
+                        VALUES (:sku_id, :product_name, :description, :specifications, :images, :datasheet_url, :category)
+                        ON CONFLICT (sku_id) DO UPDATE SET
+                            product_name = EXCLUDED.product_name,
+                            description = EXCLUDED.description,
+                            specifications = EXCLUDED.specifications,
+                            images = EXCLUDED.images,
+                            datasheet_url = EXCLUDED.datasheet_url
+                    """)
+                    
+                    conn.execute(stmt, {
+                        "sku_id": p.get("sku_id"),
+                        "product_name": p.get("product_name"),
+                        "description": p.get("description"),
+                        "specifications": json.dumps(p.get("specifications", {})),
+                        "images": json.dumps(p.get("images", [])),
+                        "datasheet_url": p.get("datasheet_url"),
+                        "category": "Fiber Optic Cables" # Simplified for this test context or extract real category
+                    })
+                    conn.commit()
+            logger.info(f"Saved {len(products)} products to DB.")
+        except Exception as e:
+            logger.error(f"Failed to save to DB: {e}")
+
 if __name__ == "__main__":
     # Test run
     logging.basicConfig(level=logging.INFO)
