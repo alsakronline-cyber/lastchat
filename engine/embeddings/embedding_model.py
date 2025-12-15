@@ -29,27 +29,54 @@ class EmbeddingModel:
         """Loads the SentenceTransformer model, checking for local files first."""
         try:
             # 1. Try Local Path (Docker/Deploy friendly)
-            # Assumes model_data is a sibling directory to the directory containing this script
-            # Normalize path to remove '..' which might confuse the library
             raw_path = os.path.join(os.path.dirname(__file__), "..", "model_data", self.model_name)
             local_path = os.path.abspath(raw_path)
             
-            if os.path.exists(local_path):
+            if os.path.exists(local_path) and os.path.isdir(local_path):
                 logger.info(f"Loading embedding model from local cache: {local_path}...")
+                
                 # Debug: List files to ensure mapped correctly
                 try:
                     files = os.listdir(local_path)
                     logger.info(f"Files in model dir: {files}")
                 except Exception as e:
                     logger.warning(f"Could not list files: {e}")
-
-                self.model = SentenceTransformer(local_path, local_files_only=True)
+                
+                # Manual loading using transformers directly to avoid HF validation
+                from transformers import AutoTokenizer, AutoModel
+                import torch
+                
+                # Load tokenizer and model without any network calls
+                tokenizer = AutoTokenizer.from_pretrained(local_path, local_files_only=True)
+                model = AutoModel.from_pretrained(local_path, local_files_only=True)
+                
+                # Wrap in SentenceTransformer-compatible way
+                # We create a minimal SentenceTransformer by directly setting its internal model
+                self.model = SentenceTransformer.__new__(SentenceTransformer)
+                from sentence_transformers.models import Transformer, Pooling
+                
+                # Create transformer wrapper
+                transformer = Transformer(
+                    model_name_or_path=local_path,
+                    tokenizer_name_or_path=local_path,
+                    max_seq_length=256
+                )
+                
+                # Create pooling layer (MEAN pooling is default for all-MiniLM-L6-v2)
+                pooling = Pooling(
+                    transformer.get_word_embedding_dimension(),
+                    pooling_mode_mean_tokens=True
+                )
+                
+                # Manually set the modules
+                self.model._modules = [transformer, pooling]
+                logger.info("Embedding model loaded successfully from local cache.")
+                
             else:
                  # 2. Fallback to Download (Will fail in offline Codespace if not cached)
                 logger.info(f"Local model not found at {local_path}. Attempting to download: {self.model_name}...")
                 self.model = SentenceTransformer(self.model_name)
             
-            logger.info("Embedding model loaded successfully.")
         except Exception as e:
             logger.error(f"Failed to load embedding model {self.model_name}: {e}")
             raise e
