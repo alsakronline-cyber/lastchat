@@ -225,7 +225,16 @@ class SickScraper(BaseScraper):
             
             # 4. If we didn't fill our quota and have sub-categories, add them to queue
             # Prioritize crawling deeper
+            # 4. If we didn't fill our quota and have sub-categories, add them to queue
+            # Optimization: If a category has many sub-categories but ZERO products, 
+            # and we are already deep, it's likely a navigation hub. 
+            # To "focus on links with products", we can deprioritize or skip huge empty hubs at depth > 1.
+            
             if len(all_products) < max_products:
+                if len(unique_p_links) == 0 and len(found_c_links) > 5 and depth > 1:
+                     logger.info("  Skipping deep empty category to focus on products...")
+                     continue
+
                 for c_url in found_c_links:
                     if c_url not in visited:
                         # Add to queue with incremented depth

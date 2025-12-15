@@ -68,8 +68,12 @@ class EmbeddingModel:
                     pooling_mode_mean_tokens=True
                 )
                 
-                # Manually set the modules
-                self.model._modules = [transformer, pooling]
+                # Manually set the modules (Must be OrderedDict)
+                from collections import OrderedDict
+                self.model._modules = OrderedDict([
+                    ('0', transformer), 
+                    ('1', pooling)
+                ])
                 logger.info("Embedding model loaded successfully from local cache.")
                 
             else:
