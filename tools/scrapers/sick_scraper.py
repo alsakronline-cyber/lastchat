@@ -46,8 +46,8 @@ class SickScraper(BaseScraper):
             
         return driver
 
-    def fetch_product_page(self, url: str) -> Optional[str]:
-        """Fetch dynamic page content"""
+    def fetch(self, url: str) -> Optional[str]:
+        """Fetch dynamic page content using Selenium"""
         try:
             logger.info(f"Navigating to {url}")
             self.driver.get(url)
@@ -66,21 +66,42 @@ class SickScraper(BaseScraper):
             logger.error(f"Error fetching {url}: {e}")
             return None
 
-    def extract_product_data(self, html: str, url: str) -> Dict:
-        """Parse HTML content to extract structured product data"""
+    def parse(self, content: str) -> List[Dict]:
+        """
+        In BaseScraper, parse expects to return a List[Dict] (multiple products).
+        However, our logic currently extracts a SINGLE product from a product page,
+        or finds links from a category page.
+        
+        To adapt to the BaseScraper interface:
+        If the content looks like a product page, return [product].
+        If it looks like a category page, we might need a different approach or 
+        this method should strictly parse a product page.
+        
+        For now, let's assume 'content' is a product page source.
+        """
+        html = content
+        # We don't have the URL here easily unless we store it in the class state 
+        # or change BaseScraper signature. 
+        # For now, let's use a dummy URL or current driver URL if available.
+        url = self.driver.current_url if self.driver else "unknown"
+        
         soup = BeautifulSoup(html, 'html.parser')
         product = {
             "source": "SICK",
             "url": url,
-            "language": "en" # Default to English
+            "language": "en"
         }
 
         # 1. Product Name
-        # Selectors need to be verified against live site
         title_elem = soup.find('h1', class_='product-title') or soup.find('h1')
         product['product_name'] = title_elem.text.strip() if title_elem else "Unknown Product"
 
-        # 2. SKU / Part Number
+        # If we failed to find a title, it might be a category page or invalid
+        if product['product_name'] == "Unknown Product":
+             # Try to see if it's a list page
+             pass 
+
+        # 2. SKU / Part Number ... (rest of extraction logic)
         sku_elem = soup.find('span', class_='product-id') or soup.find(text=lambda t: 'Part no.' in str(t))
         product['sku_id'] = sku_elem.text.replace('Part no.:', '').strip() if sku_elem else f"SICK-{random.randint(10000,99999)}"
 
@@ -88,9 +109,9 @@ class SickScraper(BaseScraper):
         desc_elem = soup.find('div', class_='product-description')
         product['description'] = desc_elem.text.strip() if desc_elem else ""
 
-        # 4. Specifications (Table)
+        # 4. Specifications
         specs = {}
-        spec_table = soup.find('table', class_='tech-data') # Generic class
+        spec_table = soup.find('table', class_='tech-data') 
         if spec_table:
             rows = spec_table.find_all('tr')
             for row in rows:
@@ -120,7 +141,39 @@ class SickScraper(BaseScraper):
         else:
             product['datasheet_url'] = None
 
-        return product
+        return [product]
+
+    def scrape_category(self, category_url: str, max_pages=1):
+        """Iterate through category pages"""
+        all_products = []
+        
+        # Use our new fetch method
+        content = self.fetch(category_url)
+        if content:
+             # Find product links
+            soup = BeautifulSoup(content, 'html.parser')
+            links = soup.find_all('a', class_='product-link')
+            product_urls = set()
+            for link in links:
+                href = link.get('href')
+                if href:
+                    if not href.startswith('http'):
+                        href = "https://www.sick.com" + href
+                    product_urls.add(href)
+            
+            logger.info(f"Found {len(product_urls)} products in category")
+            
+            for p_url in list(product_urls)[:5]: 
+                p_html = self.fetch(p_url)
+                if p_html:
+                    # New parse returns a List
+                    data_list = self.parse(p_html) 
+                    if data_list:
+                        all_products.extend(data_list)
+                        logger.info(f"Scraped: {data_list[0].get('product_name')}")
+                        time.sleep(random.uniform(1, 3))
+
+        return all_products
 
     def scrape_category(self, category_url: str, max_pages=1):
         """Iterate through category pages"""
