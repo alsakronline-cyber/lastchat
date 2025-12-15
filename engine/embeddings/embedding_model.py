@@ -53,6 +53,11 @@ class EmbeddingModel:
                 # Wrap in SentenceTransformer-compatible way
                 # We create a minimal SentenceTransformer by directly setting its internal model
                 self.model = SentenceTransformer.__new__(SentenceTransformer)
+                
+                # Critical: Initialize the base nn.Sequential to get _parameters, _modules, etc.
+                import torch.nn as nn
+                nn.Sequential.__init__(self.model)
+
                 from sentence_transformers.models import Transformer, Pooling
                 
                 # Create transformer wrapper
@@ -68,12 +73,9 @@ class EmbeddingModel:
                     pooling_mode_mean_tokens=True
                 )
                 
-                # Manually set the modules (Must be OrderedDict)
-                from collections import OrderedDict
-                self.model._modules = OrderedDict([
-                    ('0', transformer), 
-                    ('1', pooling)
-                ])
+                # Add modules properly to the Sequential container
+                self.model.add_module('0', transformer)
+                self.model.add_module('1', pooling)
                 
                 # Critical: Set device for SentenceTransformer
                 device = "cuda" if torch.cuda.is_available() else "cpu"
