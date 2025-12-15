@@ -25,4 +25,12 @@ scraped_data.csv
 deployment.tar
 *.log
 *.sqlite
+
+# Docker / Data Volumes
 postgres_data/
+milvus_data/
+etcd_data/
+minio_data/
+redis_data/
+ollama_models/
+
