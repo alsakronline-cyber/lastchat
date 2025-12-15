@@ -178,37 +178,7 @@ class SickScraper(BaseScraper):
 
         return all_products
 
-    def scrape_category(self, category_url: str, max_pages=1):
-        """Iterate through category pages"""
-        all_products = []
-        
-        # Placeholder for pagination logic
-        current_url = category_url
-        content = self.fetch_product_page(current_url)
-        if content:
-             # Find product links
-            soup = BeautifulSoup(content, 'html.parser')
-            # Example selector for product links
-            links = soup.find_all('a', class_='product-link')
-            product_urls = set()
-            for link in links:
-                href = link.get('href')
-                if href:
-                    if not href.startswith('http'):
-                        href = "https://www.sick.com" + href
-                    product_urls.add(href)
-            
-            logger.info(f"Found {len(product_urls)} products in category")
-            
-            for p_url in list(product_urls)[:5]: # Limit for testing
-                p_html = self.fetch_product_page(p_url)
-                if p_html:
-                    data = self.extract_product_data(p_html, p_url)
-                    all_products.append(data)
-                    logger.info(f"Scraped: {data.get('product_name')}")
-                    time.sleep(random.uniform(1, 3)) # Polite delay
 
-        return all_products
 
     def close(self):
         if self.driver:
