@@ -106,7 +106,7 @@ class SickScraper(BaseScraper):
 
         # 2. SKU / Part Number ... (rest of extraction logic)
         sku_elem = soup.find('span', class_='product-id') or soup.find(text=lambda t: 'Part no.' in str(t))
-        product['sku_id'] = sku_elem.text.replace('Part no.:', '').strip() if sku_elem else f"SICK-{random.randint(10000,99999)}"
+        product['sku_id'] = sku_elem.text.replace('Part no.:', '').strip() if sku_elem else None
 
         # 3. Description
         desc_elem = soup.find('div', class_='product-description')
@@ -147,52 +147,102 @@ class SickScraper(BaseScraper):
         return [product]
 
     def scrape_category(self, category_url: str, max_pages=1):
-        """Iterate through category pages"""
+        """
+        Iterate through category pages. 
+        SICK structure: Category -> Family (/c/) -> Product Variant (/p/)
+        """
         all_products = []
         
-        # Use our new fetch method
+        # 1. Fetch the main category page
+        logger.info(f"Fetching category: {category_url}")
         content = self.fetch(category_url)
-        if content:
-             # Find product links
-            # Find product links - Updated for new SICK site structure
-            soup = BeautifulSoup(content, 'html.parser')
-            
-            # primary selector based on user provided HTML
-            links = soup.select('ui-category-record-card a')
-            
-            # fallback: look for any links containing '/products/' and '/c/' which usually denote product families/items
-            if not links:
-                logger.info("Primary selector failed, trying generic href filter")
-                links = soup.find_all('a', href=lambda h: h and '/products/' in h and '/c/' in h)
+        if not content:
+            return []
 
-            product_urls = set()
-            for link in links:
-                href = link.get('href')
-                if href:
-                    if not href.startswith('http'):
-                        # Handle relative URLs properly, accounting for potential existing prefixes
-                        if href.startswith('/'):
-                            href = "https://www.sick.com" + href
-                        else:
-                             href = "https://www.sick.com/" + href
-                    
-                    # exclude unlikely matches (like filters/facets if they get caught)
-                    if 'javascript:' not in href and '#' not in href:
-                        product_urls.add(href)
+        soup = BeautifulSoup(content, 'html.parser')
+        
+        # 2. Identify links
+        # We look for both /p/ (direct product) and /c/ (sub-category/family)
+        # SICK usually lists Families (/c/) on high level pages
+        
+        # Primary selector for cards
+        card_links = soup.select('ui-category-record-card a')
+        if not card_links:
+            # Fallback generic
+            card_links = soup.find_all('a', href=lambda h: h and ('/products/' in h) and ('/c/' in h or '/p/' in h))
+
+        product_urls = set()
+        family_urls = set()
+
+        for link in card_links:
+            href = link.get('href')
+            if not href: continue
             
-            logger.info(f"Found {len(product_urls)} products in category")
+            # Normalize URL
+            if not href.startswith('http'):
+                 href = "https://www.sick.com" + href if href.startswith('/') else "https://www.sick.com/" + href
             
-            for p_url in list(product_urls)[:5]: 
-                p_html = self.fetch(p_url)
-                if p_html:
-                    # New parse returns a List
-                    data_list = self.parse(p_html) 
-                    if data_list:
-                        all_products.extend(data_list)
-                        logger.info(f"Scraped: {data_list[0].get('product_name')}")
-                        time.sleep(random.uniform(1, 3))
+            if '/p/' in href:
+                product_urls.add(href)
+            elif '/c/' in href:
+                family_urls.add(href)
+
+        logger.info(f"Found {len(product_urls)} direct products and {len(family_urls)} families/subcategories")
+
+        # 3. If we found DIRECT products, scrape them
+        for p_url in list(product_urls)[:5]: # Limit
+            products = self._scrape_product_page(p_url)
+            all_products.extend(products)
+            if products: 
+                 time.sleep(1)
+
+        # 4. If we found FAMILIES, drill down (depth 1) to find products inside them
+        # Only do this if we didn't find enough direct products, or to be thorough
+        if family_urls and len(all_products) < 5:
+            logger.info("Drilling down into families to find products...")
+            for f_url in list(family_urls)[:3]: # Limit families to verify first
+                logger.info(f"Inspecting Family: {f_url}")
+                f_content = self.fetch(f_url)
+                if not f_content: continue
+                
+                f_soup = BeautifulSoup(f_content, 'html.parser')
+                # On a family page, we look specifically for /p/ links
+                # determining the selector might be tricky, let's try a broad search for /p/ first
+                p_links = f_soup.find_all('a', href=lambda h: h and '/p/' in h)
+                
+                found_new_p_urls = set()
+                for pl in p_links:
+                    phref = pl.get('href')
+                    if not phref: continue
+                    if not phref.startswith('http'):
+                         phref = "https://www.sick.com" + phref if phref.startswith('/') else "https://www.sick.com/" + phref
+                    found_new_p_urls.add(phref)
+                
+                logger.info(f"  Found {len(found_new_p_urls)} variants in family")
+                
+                for p_url in list(found_new_p_urls)[:2]: # Limit variants per family
+                    products = self._scrape_product_page(p_url)
+                    all_products.extend(products)
+                    if len(all_products) >= 10: break # Overall safety limit
+                    time.sleep(1)
+                
+                if len(all_products) >= 10: break
 
         return all_products
+
+    def _scrape_product_page(self, url: str) -> List[Dict]:
+        """Helper to fetch and parse a specific product page"""
+        logger.info(f"Scraping Product: {url}")
+        content = self.fetch(url)
+        if content:
+            data = self.parse(content)
+            # Validate it's a real product by checking SKU or Name validity
+            if data and data[0].get('product_name') != "Unknown Product" and not data[0].get('product_name').strip() == "":
+                 logger.info(f"  Success: {data[0].get('product_name')}")
+                 return data
+            else:
+                 logger.warning(f"  Skipping {url} - Failed to parse valid product data")
+        return []
 
 
 
