@@ -17,7 +17,7 @@ langchain-community==0.0.20
 langchain-core==0.1.23
 sentence-transformers==2.3.1
 transformers==4.37.2
-torch==2.2.0 --index-url https://download.pytorch.org/whl/cpu
+
 
 # Image & PDF Processing
 pillow==10.2.0
