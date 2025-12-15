@@ -269,8 +269,8 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     scraper = SickScraper(headless=True)
     try:
-        # Example category
-        results = scraper.scrape_category("https://www.sick.com/us/en/products/c/g64893")
+        # Example category (Fiber optic cables - usually has products)
+        results = scraper.scrape_category("https://www.sick.com/us/en/catalog/products/detection-sensors/fiber-optic-sensors/fiber-optic-cables/c/g606165?tab=selection")
         print(f"Scraped {len(results)} products")
     finally:
         scraper.close()

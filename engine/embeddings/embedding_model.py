@@ -74,7 +74,13 @@ class EmbeddingModel:
                     ('0', transformer), 
                     ('1', pooling)
                 ])
-                logger.info("Embedding model loaded successfully from local cache.")
+                
+                # Critical: Set device for SentenceTransformer
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                self.model._target_device = torch.device(device)
+                self.model.to(device)
+                
+                logger.info(f"Embedding model loaded successfully from local cache on {device}.")
                 
             else:
                  # 2. Fallback to Download (Will fail in offline Codespace if not cached)
