@@ -272,5 +272,12 @@ if __name__ == "__main__":
         # Example category (Fiber optic cables - usually has products)
         results = scraper.scrape_category("https://www.sick.com/us/en/catalog/products/detection-sensors/fiber-optic-sensors/fiber-optic-cables/c/g606165?tab=selection")
         print(f"Scraped {len(results)} products")
+        
+        # Critical: Save to database so indexing script can find them
+        if results:
+            scraper.save_products(results)
+            print("✅ Products saved to database.")
+        else:
+            print("⚠️ No products to save.")
     finally:
         scraper.close()
