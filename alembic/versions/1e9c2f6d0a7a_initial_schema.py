@@ -21,6 +21,7 @@ def upgrade() -> None:
     op.create_table('products',
         sa.Column('sku_id', sa.String(length=100), primary_key=True),
         sa.Column('product_name', sa.String(length=255), nullable=False),
+        sa.Column('category', sa.String(length=255), nullable=True), # Added missing category column
         sa.Column('description', sa.Text(), nullable=True), # Added missing column
         sa.Column('manufacturer', sa.String(length=100), nullable=True),
         sa.Column('specifications', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
