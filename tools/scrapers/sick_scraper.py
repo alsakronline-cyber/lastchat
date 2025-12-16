@@ -108,9 +108,20 @@ class SickScraper(BaseScraper):
         sku_elem = soup.find('span', class_='product-id') or soup.find(text=lambda t: 'Part no.' in str(t))
         product['sku_id'] = sku_elem.text.replace('Part no.:', '').strip() if sku_elem else None
 
-        # 3. Description
-        desc_elem = soup.find('div', class_='product-description')
-        product['description'] = desc_elem.text.strip() if desc_elem else ""
+        # 3. Description - Robust fallback
+        desc_elem = soup.find('div', class_='product-description') or \
+                   soup.find('div', itemprop='description') or \
+                   soup.find('meta', attrs={'name': 'description'})
+        
+        if desc_elem:
+            if desc_elem.name == 'meta':
+                # For meta tags, get content attribute
+                product['description'] = desc_elem.get('content', '').strip()
+            else:
+                # For standard tags, get text
+                product['description'] = desc_elem.get_text(strip=True)
+        else:
+            product['description'] = "No description available."
 
         # 4. Specifications
         specs = {}
