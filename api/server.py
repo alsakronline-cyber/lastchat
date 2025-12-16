@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 import logging
 import os
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from api.routes import recommendations, documents, contacts, quotations
 
@@ -15,6 +16,9 @@ app = FastAPI(
     description="RAG-based recommendation engine for SICK, ABB, Siemens products.",
     version="1.0.0"
 )
+
+# Instrumentation
+Instrumentator().instrument(app).expose(app)
 
 # CORS Middleware (Allow all for development, restrict in production)
 app.add_middleware(

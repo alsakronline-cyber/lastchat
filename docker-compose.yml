@@ -161,6 +161,28 @@ services:
     command: >
       sh -c "pip install -r ui/requirements.txt && python -m streamlit run ui/app.py --server.port 8501 --server.address 0.0.0.0"
 
+  # 7. Monitoring (Prometheus & Grafana)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: automation-prometheus
+    volumes:
+      - ./monitoring/prometheus_config.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - automation-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: automation-grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - automation-net
+
 networks:
   automation-net:
     driver: bridge
@@ -172,3 +194,5 @@ volumes:
   minio_data:
   redis_data:
   ollama_models:
+  prometheus_data:
+  grafana_data:

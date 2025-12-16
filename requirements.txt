@@ -28,6 +28,10 @@ pypdf2==3.0.1
 reportlab
 deep-translator
 langdetect
+pytest
+httpx
+locust
+prometheus-fastapi-instrumentator
 pandas==2.2.0
 openpyxl==3.1.2
 
