@@ -10,6 +10,10 @@ from engine.llm.model_config import get_model
 from engine.llm.prompt_templates import get_rag_prompt, format_docs
 from engine.embeddings.search_engine import SearchEngine
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 class RecommendationChain:
     """
     Core RAG engine that combines retrieval (Vector DB) and generation (LLM)
