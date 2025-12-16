@@ -159,7 +159,7 @@ services:
     networks:
       - automation-net
     command: >
-      sh -c "pip install -r ui/requirements.txt && streamlit run ui/app.py --server.port 8501 --server.address 0.0.0.0"
+      sh -c "pip install -r ui/requirements.txt && python -m streamlit run ui/app.py --server.port 8501 --server.address 0.0.0.0"
 
 networks:
   automation-net:
