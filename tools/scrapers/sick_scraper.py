@@ -104,10 +104,14 @@ class SickScraper(BaseScraper):
              # Try to see if it's a list page
              pass 
 
-        # 2. SKU / Part Number ... (rest of extraction logic)
-        sku_elem = soup.find('span', class_='product-id') or soup.find(text=lambda t: 'Part no.' in str(t))
+        # 2. SKU / Part Number (Updated for Angular UI)
+        # Look for the specific Angular component structure
+        sku_elem = soup.select_one('ui-product-part-number .font-bold') or \
+                   soup.select_one('.buy-box .font-bold') or \
+                   soup.find('span', class_='product-id')
+                   
         if sku_elem:
-            product['sku_id'] = sku_elem.text.replace('Part no.:', '').strip()
+            product['sku_id'] = sku_elem.get_text(strip=True).replace('Part no.:', '').strip()
         
         # Fallback: Use URL ID or Hash if SKU is missing to prevent DB overwrites
         if not product.get('sku_id'):
