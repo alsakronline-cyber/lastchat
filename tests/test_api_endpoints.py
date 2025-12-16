@@ -8,7 +8,9 @@ def test_health_check():
     """Verify API is online."""
     response = client.get("/api/v1/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    data = response.json()
+    assert data["status"] == "healthy"
+    assert "version" in data
 
 def test_recommendation_endpoint():
     """Verify product recommendation logic."""
@@ -17,7 +19,8 @@ def test_recommendation_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert "answer" in data
-    assert "source_documents" in data
+    assert "sources" in data  # Changed from source_documents
+    assert "confidence" in data
 
 def test_quotation_creation():
     """Verify PDF quotation generation."""
