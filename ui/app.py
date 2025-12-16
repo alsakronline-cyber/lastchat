@@ -51,7 +51,7 @@ with tab1:
                     response = requests.post(
                         f"{API_BASE_URL}/recommend",
                         json={"query": prompt},
-                        timeout=30
+                        timeout=120
                     )
                     if response.status_code == 200:
                         data = response.json()
