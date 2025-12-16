@@ -6,7 +6,9 @@ from langchain_core.runnables import RunnablePassthrough
 from engine.translation.language_detector import LanguageDetector
 from engine.translation.translator import AutoTranslator
 
-# ... existing imports ...
+from engine.llm.model_config import get_model
+from engine.llm.prompt_templates import get_rag_prompt, format_docs
+from engine.embeddings.search_engine import SearchEngine
 
 class RecommendationChain:
     """
