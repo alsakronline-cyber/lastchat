@@ -106,7 +106,20 @@ class SickScraper(BaseScraper):
 
         # 2. SKU / Part Number ... (rest of extraction logic)
         sku_elem = soup.find('span', class_='product-id') or soup.find(text=lambda t: 'Part no.' in str(t))
-        product['sku_id'] = sku_elem.text.replace('Part no.:', '').strip() if sku_elem else None
+        if sku_elem:
+            product['sku_id'] = sku_elem.text.replace('Part no.:', '').strip()
+        
+        # Fallback: Use URL ID or Hash if SKU is missing to prevent DB overwrites
+        if not product.get('sku_id'):
+            import hashlib
+            # Try to extract ID from URL (e.g., /p/p261688 -> p261688)
+            url_part = url.split('/p/')[-1].split('?')[0] if '/p/' in url else ""
+            if url_part:
+                product['sku_id'] = url_part
+            else:
+                # Last resort: Hash the URL
+                product['sku_id'] = f"unknown-{hashlib.md5(url.encode()).hexdigest()[:8]}"
+            logger.warning(f"  SKU not found, using fallback: {product['sku_id']}")
 
         # 3. Description - Robust fallback
         desc_elem = soup.find('div', class_='product-description') or \
