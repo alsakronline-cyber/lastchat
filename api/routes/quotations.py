@@ -1,45 +1,38 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, EmailStr
-from typing import List
-import logging
-from datetime import datetime
+from fastapi.responses import FileResponse
+from engine.purchasing.quotation_generator import QuotationGenerator
+import os
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+generator = QuotationGenerator()
 
 # Request Model
 class QuotationItem(BaseModel):
     sku: str
-    quantity: int = 1
+    name: str = "Product"  # Added name
+    qty: int = 1         # Renamed from quantity for consistency
+    price: float = 0.0     # Added price
 
 class QuotationRequest(BaseModel):
-    contact_email: EmailStr
+    customer_name: str     # Added customer name
+    customer_email: EmailStr
     items: List[QuotationItem]
-    notes: str | None = None
 
-# Response Model
-class QuotationResponse(BaseModel):
-    success: bool
-    message: str
-    quotation_ref: str
-
-@router.post("/quotations", response_model=QuotationResponse)
-async def request_quotation(quote: QuotationRequest):
-    """
-    Submit a request for quotation (RFQ).
-    """
+@router.post("/quotations", summary="Generate a PDF Quotation")
+async def generate_quotation(request: QuotationRequest):
     try:
-        logger.info(f"New RFQ from {quote.contact_email} for {len(quote.items)} items.")
+        data = request.dict()
+        # Normalization for generator
+        for item in data['items']:
+             # Ensure correct keys for generator if needed
+             pass
+
+        filepath = generator.generate_quotation(data)
         
-        # In real app: Validate SKUs, save to DB, trigger email workflow.
-        
-        mock_ref = f"RFQ-{int(datetime.now().timestamp())}"
-        
-        return QuotationResponse(
-            success=True,
-            message=f"Quotation request received. Reference: {mock_ref}",
-            quotation_ref=mock_ref
-        )
+        if not os.path.exists(filepath):
+            raise HTTPException(status_code=500, detail="Failed to generate PDF")
+            
+        return FileResponse(filepath, media_type="application/pdf", filename=os.path.basename(filepath))
     except Exception as e:
-        logger.error(f"Error processing RFQ: {e}")
-        raise HTTPException(status_code=500, detail="Failed to process quotation request.")
+        logger.error(f"Error generating quotation: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
