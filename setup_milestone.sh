@@ -48,3 +48,18 @@ with engine.connect() as conn:
 "
 
 echo "=== Setup Complete! ==="
+
+# 5. RAG Verification
+echo "Step 5: Testing RAG Retrieval..."
+docker-compose exec -T api python -c "
+try:
+    from engine.rag.recommendation_chain import RecommendationChain
+    rag = RecommendationChain()
+    print('\n[TEST] Querying: \"Find fiber optic cables with drawings\"')
+    result = rag.get_recommendation('Find fiber optic cables with drawings')
+    print('\n--- AI Response ---')
+    print(result['answer'])
+    print('-------------------')
+except Exception as e:
+    print(f'[ERROR] RAG Test Failed: {e}')
+"
