@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from api.models import User, ChatSession, ChatMessage
-from api.utils.auth import verify_password, get_password_hash, create_access_token, decode_token
+from api.utils.auth import verify_password, get_password_hash, create_access_token, decode_token, oauth2_scheme
 from pydantic import BaseModel, EmailStr
 from datetime import timedelta
 from typing import Optional
@@ -11,7 +11,6 @@ from typing import Optional
 from api.database import get_db
 
 router = APIRouter()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 class UserCreate(BaseModel):
     email: EmailStr
