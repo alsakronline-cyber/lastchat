@@ -6,7 +6,7 @@ from api.utils.auth import verify_password, get_password_hash, create_access_tok
 from pydantic import BaseModel, EmailStr
 from datetime import timedelta
 from typing import Optional
-from database import get_db # Assuming you have a get_db dependency in database.py or similar, or create it.
+
 
 # Temporary fix: create get_db dependency if not exists or import locally
 # For now, I'll assume I need to create a simple dependency here or import it
