@@ -352,7 +352,10 @@ class SickScraper(BaseScraper):
         DB_PORT = os.getenv("POSTGRES_PORT", "5432")
         DB_NAME = os.getenv("POSTGRES_DB", "automation_engine")
         
-        DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        # Prioritize DATABASE_URL if set (e.g. in Docker)
+        DATABASE_URL = os.getenv("DATABASE_URL")
+        if not DATABASE_URL:
+             DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
         
         try:
             engine = create_engine(DATABASE_URL)
