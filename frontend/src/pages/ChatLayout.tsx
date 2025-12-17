@@ -158,56 +158,59 @@ export const ChatLayout = () => {
             <motion.aside
                 initial={{ x: -300 }}
                 animate={{ x: isSidebarOpen ? 0 : -300 }}
-                transition={{ type: "spring", damping: 20 }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
                 className={`fixed md:relative z-30 w-72 h-full glass-panel border-r border-white/5 flex flex-col ${!isSidebarOpen && 'hidden md:flex md:w-0 md:opacity-0 md:overflow-hidden'}`}
             >
-                <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                            <Bot className="w-5 h-5 text-white" />
+                <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/0">
+                    <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-blue-600 shadow-lg shadow-primary/20 flex items-center justify-center">
+                            <Bot className="w-6 h-6 text-white" />
                         </div>
-                        <span className="font-bold text-lg tracking-tight">AI Engine</span>
+                        <span className="font-bold text-xl tracking-tight text-gradient-primary">AI Engine</span>
                     </div>
-                    <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-1 hover:bg-white/10 rounded">
+                    <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-1 hover:bg-white/10 rounded-lg">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
-                <div className="p-4">
+                <div className="p-4 flex-1 overflow-y-auto custom-scrollbar">
                     <button
                         onClick={() => { setCurrentSessionId(null); setMessages([]); }}
-                        className="w-full btn-primary flex items-center justify-center gap-2 mb-6"
+                        className="w-full btn-primary flex items-center justify-center gap-2 mb-8 py-3 text-sm tracking-wide uppercase font-bold"
                     >
                         <Plus className="w-4 h-4" />
                         New Chat
                     </button>
 
-                    <div className="space-y-2">
-                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">History</h3>
+                    <div className="space-y-1">
+                        <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4 pl-2">History</h3>
                         {sessions.map((session) => (
                             <button
                                 key={session.id}
                                 onClick={() => setCurrentSessionId(session.id)}
-                                className={`w-full text-left p-3 rounded-lg hover:bg-white/5 transition-colors flex items-center gap-3 group ${currentSessionId === session.id ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white'}`}
+                                className={`w-full text-left p-3 rounded-xl transition-all duration-200 flex items-center gap-3 group border border-transparent ${currentSessionId === session.id
+                                        ? 'bg-white/10 text-white border-white/10 shadow-lg'
+                                        : 'text-gray-400 hover:text-white glass-panel-hover'
+                                    }`}
                             >
-                                <MessageSquare className={`w-4 h-4 transition-colors ${currentSessionId === session.id ? 'text-primary' : 'text-gray-500 group-hover:text-primary'}`} />
-                                <span className="truncate text-sm">{session.title}</span>
+                                <MessageSquare className={`w-4 h-4 transition-colors ${currentSessionId === session.id ? 'text-primary' : 'text-gray-600 group-hover:text-primary'}`} />
+                                <span className="truncate text-sm font-medium">{session.title}</span>
                             </button>
                         ))}
                     </div>
                 </div>
 
-                <div className="mt-auto p-4 border-t border-white/10">
-                    <div className="flex items-center gap-3 mb-4 px-2">
-                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                <div className="p-4 border-t border-white/5 bg-black/20">
+                    <div className="flex items-center gap-3 mb-4 p-2 rounded-xl hover:bg-white/5 transition-colors cursor-pointer">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-gray-700 to-gray-600 border border-white/10 flex items-center justify-center text-white font-bold shadow-inner">
                             {user?.full_name?.charAt(0) || 'U'}
                         </div>
-                        <div className="truncate">
-                            <p className="text-sm font-medium">{user?.full_name || 'User'}</p>
+                        <div className="truncate flex-1">
+                            <p className="text-sm font-semibold text-white">{user?.full_name || 'User'}</p>
                             <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                         </div>
                     </div>
-                    <button onClick={logout} className="w-full flex items-center gap-2 p-2 text-sm text-gray-400 hover:text-white hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-colors">
+                    <button onClick={logout} className="w-full flex items-center gap-2 p-2.5 text-sm font-medium text-gray-400 hover:text-white hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-all">
                         <LogOut className="w-4 h-4" />
                         Sign Out
                     </button>
@@ -215,46 +218,53 @@ export const ChatLayout = () => {
             </motion.aside>
 
             {/* Main Chat Area */}
-            <main className="flex-1 flex flex-col w-full relative">
+            <main className="flex-1 flex flex-col w-full relative bg-radial-gradient">
                 {/* Header */}
-                <header className="h-16 border-b border-white/5 flex items-center px-4 justify-between bg-dark-900/50 backdrop-blur-sm sticky top-0 z-10">
+                <header className="h-20 border-b border-white/5 flex items-center px-6 justify-between bg-dark-900/80 backdrop-blur-md sticky top-0 z-10 transition-all">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-white/5 rounded-lg transition-colors">
-                            <Menu className="w-5 h-5" />
+                        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-white/5 rounded-xl transition-colors text-gray-400 hover:text-white">
+                            <Menu className="w-6 h-6" />
                         </button>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
                         <button
                             onClick={() => setIsQuoteModalOpen(true)}
-                            className="btn-secondary text-sm flex items-center gap-2 px-3 py-1.5"
+                            className="btn-secondary text-sm flex items-center gap-2 px-4 py-2 hover:border-primary/50 hover:text-primary transition-all group"
                         >
-                            <FileText className="w-4 h-4" />
+                            <FileText className="w-4 h-4 group-hover:scale-110 transition-transform" />
                             Request Quote
                         </button>
-                        <span className="text-sm text-gray-500">v1.2.0</span>
                     </div>
                 </header>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth">
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 scroll-smooth custom-scrollbar">
                     {messages.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-50">
-                            <Bot className="w-16 h-16 text-primary mb-4" />
-                            <h2 className="text-2xl font-bold mb-2">How can I help you today?</h2>
-                            <p className="text-gray-400 max-w-md">
-                                I can help you find SICK products, generate quotations, or answer technical questions.
+                        <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-0 animate-fade-in" style={{ animationFillMode: 'forwards' }}>
+                            <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/20 to-transparent flex items-center justify-center mb-8 animate-float">
+                                <Bot className="w-12 h-12 text-primary" />
+                            </div>
+                            <h2 className="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-200 to-gray-500">
+                                Global Industrial AI
+                            </h2>
+                            <p className="text-gray-400 max-w-lg text-lg leading-relaxed">
+                                I am your SICK sensor expert. Ask me about products, technical specifications, or request a formal quotation.
                             </p>
                         </div>
                     ) : (
                         messages.map((msg, idx) => (
                             <motion.div
                                 key={idx}
-                                initial={{ opacity: 0, y: 10 }}
+                                initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.4, delay: idx * 0.1 }}
                                 className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                             >
-                                <div className={`p-4 rounded-2xl max-w-[80%] ${msg.role === 'user' ? 'bg-primary text-white rounded-br-none' : 'glass-panel rounded-bl-none'}`}>
+                                <div className={`p-5 rounded-3xl max-w-[85%] md:max-w-[75%] shadow-xl backdrop-blur-sm border border-white/5 leading-relaxed ${msg.role === 'user'
+                                        ? 'bg-gradient-to-br from-primary to-blue-600 text-white rounded-br-none'
+                                        : 'glass-panel rounded-bl-none text-gray-100'
+                                    }`}>
                                     {msg.content}
                                 </div>
                             </motion.div>
