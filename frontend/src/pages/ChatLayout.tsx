@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Plus, MessageSquare, Menu, X, Send, Bot, User as UserIcon } from 'lucide-react';
+import { LogOut, Plus, MessageSquare, Menu, X, Send, Bot, User as UserIcon, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+import { RequestQuoteModal } from '../components/RequestQuoteModal';
 
 export const ChatLayout = () => {
     const { user, logout } = useAuth();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -136,6 +139,8 @@ export const ChatLayout = () => {
 
     return (
         <div className="flex h-screen overflow-hidden bg-dark-900">
+            <RequestQuoteModal isOpen={isQuoteModalOpen} onClose={() => setIsQuoteModalOpen(false)} />
+
             {/* Mobile Sidebar Overlay */}
             <AnimatePresence>
                 {isSidebarOpen && (
@@ -213,10 +218,22 @@ export const ChatLayout = () => {
             <main className="flex-1 flex flex-col w-full relative">
                 {/* Header */}
                 <header className="h-16 border-b border-white/5 flex items-center px-4 justify-between bg-dark-900/50 backdrop-blur-sm sticky top-0 z-10">
-                    <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-white/5 rounded-lg transition-colors">
-                        <Menu className="w-5 h-5" />
-                    </button>
-                    <span className="text-sm text-gray-500">v1.0.0</span>
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-white/5 rounded-lg transition-colors">
+                            <Menu className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setIsQuoteModalOpen(true)}
+                            className="btn-secondary text-sm flex items-center gap-2 px-3 py-1.5"
+                        >
+                            <FileText className="w-4 h-4" />
+                            Request Quote
+                        </button>
+                        <span className="text-sm text-gray-500">v1.2.0</span>
+                    </div>
                 </header>
 
                 {/* Messages */}
