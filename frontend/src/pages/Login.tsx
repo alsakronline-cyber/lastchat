@@ -11,7 +11,6 @@ export const Login = () => {
     const [loading, setLoading] = useState(false);
 
     const { login } = useAuth();
-    const { login } = useAuth();
     const navigate = useNavigate();
     const API_URL = '/api/v1';
 
