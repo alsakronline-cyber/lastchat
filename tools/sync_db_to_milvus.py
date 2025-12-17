@@ -34,47 +34,60 @@ def sync_products():
         logger.error(f"DB Error: {e}")
         return
 
-    # 2. Fetch Products
-    # Only fetch fields needed for embedding and metadata
-    stmt = text("SELECT product_name, sku_id, category, description, specifications FROM products")
-    result = conn.execute(stmt)
-    products = []
-    texts_to_embed = []
+    # 2. Batch Processing
+    BATCH_SIZE = 100
+    offset = 0
+    total_synced = 0
     
-    for row in result:
-        p = {
-            "product_id": str(row[1]), # Using SKU as ID for simplicity
-            "sku": row[1],
-            "name": row[0],
-            "category": row[2]
-        }
-        products.append(p)
-        
-        # Construct text for embedding: Name + Description + Specs
-        # This provides rich semantic context
-        specs_str = str(row[4]) if row[4] else ""
-        text_content = f"Product: {row[0]}\nCategory: {row[2]}\nDescription: {row[3]}\nSpecs: {specs_str[:500]}" # Truncate specs to avoid token limit if needed
-        texts_to_embed.append(text_content)
-
-    logger.info(f"Fetched {len(products)} products from DB.")
-    
-    if not products:
-        logger.warning("No products to sync.")
-        return
-
-    # 3. Generate Embeddings
-    logger.info("Loading Embedding Model (this may take a moment)...")
+    # Initialize components once
+    logger.info("Loading Embedding Model...")
     embedder = EmbeddingModel()
-    embeddings = embedder.embed_text(texts_to_embed)
-    logger.info(f"Generated {len(embeddings)} embeddings.")
-
-    # 4. Insert into Milvus
+    
     milvus_host = os.getenv("MILVUS_HOST", "localhost")
     logger.info(f"Connecting to Milvus at {milvus_host}...")
     indexer = VectorIndexer(host=milvus_host)
-    indexer.insert_products(products, embeddings)
     
-    logger.info("Sync Complete!")
+    while True:
+        logger.info(f"Processing batch: Offset {offset}, Limit {BATCH_SIZE}")
+        
+        stmt = text("SELECT product_name, sku_id, category, description, specifications FROM products LIMIT :limit OFFSET :offset")
+        result = conn.execute(stmt, {"limit": BATCH_SIZE, "offset": offset})
+        rows = result.fetchall()
+        
+        if not rows:
+            break
+            
+        products = []
+        texts_to_embed = []
+        
+        for row in rows:
+            p = {
+                "product_id": str(row[1]),
+                "sku": row[1],
+                "name": row[0],
+                "category": row[2]
+            }
+            products.append(p)
+            
+            # Text for embedding
+            specs_str = str(row[4]) if row[4] else ""
+            # Truncate specs to avoid token limit errors (bert limit is usually 512 tokens)
+            text_content = f"Product: {row[0]}\nCategory: {row[2]}\nDescription: {row[3]}\nSpecs: {specs_str[:1000]}"
+            texts_to_embed.append(text_content)
+            
+        # 3. Generate Embeddings & Insert
+        if products:
+            try:
+                embeddings = embedder.embed_text(texts_to_embed)
+                indexer.insert_products(products, embeddings)
+                total_synced += len(products)
+                logger.info(f"Synced batch of {len(products)} products.")
+            except Exception as e:
+                logger.error(f"Error syncing batch at offset {offset}: {e}")
+
+        offset += BATCH_SIZE
+        
+    logger.info(f"Sync Complete! Total Synced: {total_synced}")
 
 if __name__ == "__main__":
     sync_products()

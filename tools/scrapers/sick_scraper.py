@@ -50,24 +50,153 @@ class SickScraper(BaseScraper):
         return driver
 
     def fetch(self, url: str) -> Optional[str]:
-        """Fetch dynamic page content using Selenium"""
-        try:
-            logger.info(f"Navigating to {url}")
-            self.driver.get(url)
+        """Fetch dynamic page content using Selenium with Retries"""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Navigating to {url} (Attempt {attempt+1}/{max_retries})")
+                self.driver.get(url)
+                
+                # Wait for main content
+                WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located((By.TAG_NAME, "body"))
+                )
+                
+                # Scroll to trigger lazy loading
+                self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
+                time.sleep(2)
+                
+                return self.driver.page_source
+            except Exception as e:
+                logger.warning(f"Error fetching {url}: {e}")
+                time.sleep(2 * (attempt + 1)) # Backoff
+                
+        logger.error(f"Failed to fetch {url} after {max_retries} attempts.")
+        return None
+
+# ... (parse and other methods omitted for brevity, they remain similar) ...
+
+    def scrape_category(self, start_url: str, max_products=100, resume=False):
+        """
+        Crawls the category page with Resume capability.
+        """
+        all_products = []
+        visited_urls = set()
+        
+        # Load checkpoint if resuming
+        checkpoint_file = "scraped_urls.txt"
+        if resume and os.path.exists(checkpoint_file):
+            with open(checkpoint_file, "r") as f:
+                visited_urls = set(line.strip() for line in f if line.strip())
+            logger.info(f"Resumed: Loaded {len(visited_urls)} already scraped URLs.")
+        
+        logger.info(f"Navigating to {start_url}")
+        self.driver.get(start_url)
+        time.sleep(3)
+        
+        products_collected = 0
+        while products_collected < max_products:
+            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
             
-            # Wait for main content
-            WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.TAG_NAME, "body"))
-            )
+            # 1. Find Links
+            page_links = soup.find_all('a', href=True)
+            candidate_urls = []
+            for link in page_links:
+                href = link['href']
+                if '/p/' in href:
+                     if not href.startswith('http'):
+                         href = "https://www.sick.com" + href if href.startswith('/') else "https://www.sick.com/" + href
+                     candidate_urls.append(href)
+                     
+            unique_candidates = list(set(candidate_urls))
             
-            # Scroll to trigger lazy loading
-            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
-            time.sleep(2)
+            # 2. Process Candidates
+            new_products_found = False
+            for p_url in unique_candidates:
+                if products_collected >= max_products:
+                    break
+                
+                if p_url in visited_urls:
+                    continue
+                
+                # Process
+                visited_urls.add(p_url)
+                
+                # Open in new tab
+                self.driver.execute_script(f"window.open('{p_url}', '_blank');")
+                self.driver.switch_to.window(self.driver.window_handles[-1])
+                
+                try:
+                    p_data = self._scrape_product_page(p_url)
+                    if p_data:
+                        all_products.extend(p_data)
+                        products_collected += 1
+                        new_products_found = True
+                        
+                        # Save checkpoint immediately
+                        with open(checkpoint_file, "a") as f:
+                            f.write(p_url + "\n")
+                            
+                        # Optional: Partial Save to DB here?
+                        # For now we keep saving at end or batching could be added.
+                except Exception as e:
+                    logger.error(f"Error processing {p_url}: {e}")
+                finally:
+                    self.driver.close()
+                    self.driver.switch_to.window(self.driver.window_handles[0])
+
+            if products_collected >= max_products:
+                break
             
-            return self.driver.page_source
-        except Exception as e:
-            logger.error(f"Error fetching {url}: {e}")
-            return None
+            # 3. Load More / Pagination logic (Same as before)
+            # ... (Existing pagination logic checks) ...
+            try:
+                load_more_btn = self.driver.find_element(By.XPATH, "//button[contains(text(), 'Load more') or contains(text(), 'Show more')] | //a[contains(@class, 'load-more')]")
+                if load_more_btn and load_more_btn.is_displayed():
+                    self.driver.execute_script("arguments[0].scrollIntoView(true);", load_more_btn)
+                    time.sleep(1)
+                    self.driver.execute_script("arguments[0].click();", load_more_btn)
+                    time.sleep(3)
+                else:
+                    break
+            except Exception:
+                # Scroll fallback
+                last_height = self.driver.execute_script("return document.body.scrollHeight")
+                self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(2)
+                new_height = self.driver.execute_script("return document.body.scrollHeight")
+                if new_height == last_height and not new_products_found:
+                    break
+
+        return all_products
+
+# ...
+
+if __name__ == "__main__":
+    import argparse
+    import os
+    
+    parser = argparse.ArgumentParser(description="Scrape SICK products.")
+    parser.add_argument("--url", default="https://www.sick.com/us/en/catalog/products/detection-sensors/fiber-optic-sensors/fiber-optic-cables/c/g606165?tab=selection", help="SICK category URL")
+    parser.add_argument("--limit", type=int, default=5, help="Max products")
+    parser.add_argument("--headless", action="store_true")
+    parser.add_argument("--no-headless", action="store_false", dest="headless")
+    parser.add_argument("--resume", action="store_true", help="Resume from scraped_urls.txt checkpoint")
+    parser.set_defaults(headless=True)
+    
+    args = parser.parse_args()
+    
+    logging.basicConfig(level=logging.INFO)
+    logger.info(f"Starting scraper with args: {args}")
+    
+    scraper = SickScraper(headless=args.headless)
+    try:
+        results = scraper.scrape_category(args.url, max_products=args.limit, resume=args.resume)
+        print(f"Scraped {len(results)} products")
+        if results:
+            scraper.save_products(results)
+    finally:
+        scraper.close()
 
     def parse(self, content: str, url: str = "", category_path: str = "") -> List[Dict]:
         """
@@ -236,93 +365,93 @@ class SickScraper(BaseScraper):
 
         return [product]
 
-    def scrape_category(self, start_url: str, max_products=20):
+    def scrape_category(self, start_url: str, max_products=100):
         """
-        Crawls the category using BFS to find products.
+        Crawls the category page, handling pagination/"Load More" to find products.
         """
         all_products = []
-        visited = set()
-        queue = [(start_url, 0)] # (url, depth)
-        MAX_DEPTH = 3
+        visited_urls = set()
         
-        while queue and len(all_products) < max_products:
-            current_url, depth = queue.pop(0)
+        logger.info(f"Navigating to {start_url}")
+        self.driver.get(start_url)
+        time.sleep(3)
+        
+        # SICK usually uses a "Load more" button or infinite scroll on category pages
+        # We will try to load enough products to meet the limit
+        
+        products_collected = 0
+        while products_collected < max_products:
+            # 1. Parse current page for products
+            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
             
-            if current_url in visited:
-                continue
-            visited.add(current_url)
+            # Find product links (refining selectors based on common SICK layout)
+            # Typically links are in <a class="product-tile-link"> or similar
+            # Iterate all links and check patterns
+            page_links = soup.find_all('a', href=True)
+            candidate_urls = []
             
-            if depth > MAX_DEPTH:
-                continue
+            for link in page_links:
+                href = link['href']
+                if '/p/' in href: # Product pattern
+                     if not href.startswith('http'):
+                         href = "https://www.sick.com" + href if href.startswith('/') else "https://www.sick.com/" + href
+                     candidate_urls.append(href)
+                     
+            unique_candidates = list(set(candidate_urls))
+            logger.info(f"Found {len(unique_candidates)} visible products on page.")
+            
+            # 2. Process Candidates
+            new_products_found = False
+            for p_url in unique_candidates:
+                if products_collected >= max_products:
+                    break
+                
+                if p_url not in visited_urls:
+                    visited_urls.add(p_url)
+                    # Open in new tab to preserve category page state
+                    self.driver.execute_script(f"window.open('{p_url}', '_blank');")
+                    self.driver.switch_to.window(self.driver.window_handles[-1])
+                    
+                    try:
+                        p_data = self._scrape_product_page(p_url)
+                        if p_data:
+                            all_products.extend(p_data)
+                            products_collected += 1
+                            new_products_found = True
+                    except Exception as e:
+                        logger.error(f"Error processing {p_url}: {e}")
+                    finally:
+                        self.driver.close()
+                        self.driver.switch_to.window(self.driver.window_handles[0])
 
-            logger.info(f"Crawling [Depth {depth}]: {current_url}")
-            content = self.fetch(current_url)
-            if not content:
-                continue
+            if products_collected >= max_products:
+                break
                 
-            soup = BeautifulSoup(content, 'html.parser')
-            
-            # Determine if this is a Product Page or Category Page
-            # A simple heuristic: check for "Add to cart" or specific product ID elements
-            # Or reliance on URL patterns provided by the loop logic below.
-            
-            # 1. Identify Links
-            links = []
-            
-            # Category/Product Cards
-            card_links = soup.select('a') # refined below
-            
-            found_p_links = []
-            found_c_links = []
-            
-            for link in card_links:
-                href = link.get('href')
-                if not href: continue
-                
-                # Normalize
-                if not href.startswith('http'):
-                    href = "https://www.sick.com" + href if href.startswith('/') else "https://www.sick.com/" + href
-                
-                # Exclusions
-                if any(x in href for x in ['javascript:', 'mailto:', '#', 'login', 'register']):
-                    continue
-                
-                # SICK URL Patterns
-                # Product: /p/p123456
-                # Category: /c/g123456
-                
-                if '/p/' in href:
-                    found_p_links.append(href)
-                elif '/products/' in href or '/catalog/' in href or '/c/' in href:
-                    # Avoid back-tracking to high level pages usually shorter than current
-                    if len(href) > len("https://www.sick.com/us/en"): 
-                        found_c_links.append(href)
-
-            # Unique
-            unique_p_links = list(set(found_p_links))
-            unique_c_links = list(set(found_c_links))
-            
-            logger.info(f"  Found {len(unique_p_links)} products and {len(unique_c_links)} sub-links")
-
-            # Scrape products found on THIS page
-            for p_url in unique_p_links:
-                if len(all_products) >= max_products: break
-                if p_url not in visited:
-                    # Pass context if possible, but for now just URL
-                    p_data = self._scrape_product_page(p_url)
-                    if p_data:
-                        all_products.extend(p_data)
-                        visited.add(p_url)
-            
-            # Add sub-categories to queue
-            # Prioritize product-looking links? No, BFS is fine.
-            if len(all_products) < max_products:
-                for c_url in unique_c_links:
-                    if c_url not in visited:
-                        queue.append((c_url, depth + 1))
-            
-            time.sleep(1)
-
+            # 3. Load More / Pagination
+            # Attempt to click "Load more"
+            try:
+                # Common selectors for load more
+                load_more_btn = self.driver.find_element(By.XPATH, "//button[contains(text(), 'Load more') or contains(text(), 'Show more')] | //a[contains(@class, 'load-more')]")
+                if load_more_btn and load_more_btn.is_displayed():
+                    logger.info("Clicking 'Load More'...")
+                    self.driver.execute_script("arguments[0].scrollIntoView(true);", load_more_btn)
+                    time.sleep(1)
+                    self.driver.execute_script("arguments[0].click();", load_more_btn)
+                    time.sleep(3) # Wait for content
+                else:
+                    logger.info("No 'Load More' button found. End of list?")
+                    break
+            except Exception:
+                # If button not found, maybe just scroll down
+                logger.info("Scrolling down to trigger potential lazy load...")
+                last_height = self.driver.execute_script("return document.body.scrollHeight")
+                self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(2)
+                new_height = self.driver.execute_script("return document.body.scrollHeight")
+                if new_height == last_height and not new_products_found:
+                    logger.info("Reached bottom and no new products found.")
+                    break
+                    
         return all_products
 
     def _scrape_product_page(self, url: str) -> List[Dict]:
@@ -407,11 +536,23 @@ class SickScraper(BaseScraper):
             logger.error(f"Failed to save to DB: {e}")
 
 if __name__ == "__main__":
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Scrape SICK products.")
+    parser.add_argument("--url", default="https://www.sick.com/us/en/catalog/products/detection-sensors/fiber-optic-sensors/fiber-optic-cables/c/g606165?tab=selection", help="SICK category URL to scrape")
+    parser.add_argument("--limit", type=int, default=5, help="Max products to scrape")
+    parser.add_argument("--headless", action="store_true", help="Run in headless mode (default: True)")
+    parser.add_argument("--no-headless", action="store_false", dest="headless", help="Run in visible mode")
+    parser.set_defaults(headless=True)
+    
+    args = parser.parse_args()
+    
     logging.basicConfig(level=logging.INFO)
-    scraper = SickScraper(headless=True)
+    logger.info(f"Starting scraper with args: {args}")
+    
+    scraper = SickScraper(headless=args.headless)
     try:
-        # Example: Fiber optic cables
-        results = scraper.scrape_category("https://www.sick.com/us/en/catalog/products/detection-sensors/fiber-optic-sensors/fiber-optic-cables/c/g606165?tab=selection", max_products=5)
+        results = scraper.scrape_category(args.url, max_products=args.limit)
         print(f"Scraped {len(results)} products")
         if results:
             scraper.save_products(results)
