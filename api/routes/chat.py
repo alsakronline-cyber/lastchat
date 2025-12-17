@@ -96,4 +96,10 @@ def chat_interaction(session_id: int, message: MessageBase, db: Session = Depend
     
     db.commit()
     
-    return {"response": ai_response_text, "session_id": session_id}
+    db.commit()
+    
+    return {
+        "response": ai_response_text, 
+        "session_id": session_id,
+        "sources": result.get("source_documents", [])
+    }

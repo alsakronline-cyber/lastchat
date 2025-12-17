@@ -99,17 +99,17 @@ services:
       timeout: 5s
       retries: 5
 
-  # 4. LLM Engine (Ollama) - Temporarily disabled for disk space
-  # ollama:
-  #   image: ollama/ollama:latest
-  #   container_name: automation-ollama
-  #   restart: unless-stopped
-  #   ports:
-  #     - "11434:11434"
-  #   volumes:
-  #     - ollama_models:/root/.ollama
-  #   networks:
-  #     - automation-net
+  # 4. LLM Engine (Ollama)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: automation-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    networks:
+      - automation-net
 
   # 5. API Gateway & Application
   api:

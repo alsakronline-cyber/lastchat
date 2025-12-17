@@ -62,7 +62,33 @@ with tab1:
                         # Show sources if available
                         if "sources" in data:
                             with st.expander("View Source Documents"):
-                                st.json(data["sources"])
+                                for idx, source in enumerate(data["sources"]):
+                                    st.markdown(f"### {idx+1}. {source.get('name')} ({source.get('sku')})")
+                                    st.caption(f"Category: {source.get('category')} | Match Score: {source.get('score', 0):.2f}")
+                                    
+                                    # 1. Technical Drawings / Images
+                                    drawings = source.get('technical_drawings', [])
+                                    if drawings:
+                                        st.markdown("**Technical Drawings:**")
+                                        # Display first drawing for now
+                                        st.image(drawings[0], caption="Technical Drawing", width=400)
+                                    
+                                    # 2. Documents
+                                    docs = source.get('documents', [])
+                                    if docs:
+                                        st.markdown("**Documents:**")
+                                        for d in docs:
+                                            st.markdown(f"- 📄 [{d.get('title', 'Document')}]({d.get('url')})")
+                                    
+                                    # 3. Specifications
+                                    specs = source.get('specifications', {})
+                                    if specs:
+                                        with st.expander("Technical Specifications"):
+                                            st.json(specs)
+                                    
+                                    st.divider()
+                                # Fallback raw view
+                                # st.json(data["sources"])
                     else:
                         st.error(f"Error: {response.text}")
                 except Exception as e:

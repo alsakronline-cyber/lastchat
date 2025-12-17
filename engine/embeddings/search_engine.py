@@ -23,13 +23,14 @@ class SearchEngine:
     def search_products(self, query: str, limit: int = 5) -> List[Dict]:
         """
         Search for products semantically matching the query.
+        Performs Hybrid Retrieval: Milvus (Vector) -> PostgreSQL (Metadata).
         
         Args:
             query (str): User's search text.
             limit (int): Number of results to return.
             
         Returns:
-            List[Dict]: List of matching products with scores.
+            List[Dict]: List of matching products with scores and full metadata.
         """
         logger.info(f"Searching for: '{query}'")
         
@@ -39,10 +40,57 @@ class SearchEngine:
             return []
 
         # 2. Search in Milvus
-        results = self.indexer.search(query_vec, top_k=limit)
+        milvus_results = self.indexer.search(query_vec, top_k=limit)
         
-        logger.info(f"Found {len(results)} matches.")
-        return results
+        if not milvus_results:
+            logger.info("No results found in Milvus.")
+            return []
+            
+        logger.info(f"Found {len(milvus_results)} matches in Milvus. Fetching details from DB...")
+        
+        # 3. Fetch Reach Metadata from PostgreSQL
+        # Extract SKUs to query DB
+        sku_map = {res['sku']: res for res in milvus_results}
+        skus = list(sku_map.keys())
+        
+        if not skus:
+            return milvus_results
+
+        try:
+            from api.database import engine
+            from sqlalchemy import text
+            import json
+            
+            # Use a safe parameterized query
+            # We must handle the list parameter correctly for IN clause
+            # SQLAlchemy text() with bindparams is one way, or simple string formatting if careful.
+            # ideally use :skus and tuple(skus)
+            
+            with engine.connect() as conn:
+                stmt = text("""
+                    SELECT sku_id, technical_drawings, documents, specifications, images, datasheet_url 
+                    FROM products 
+                    WHERE sku_id = ANY(:skus)
+                """)
+                # Execute
+                db_results = conn.execute(stmt, {"skus": skus}).fetchall()
+                
+                # Merge DB data into Milvus results
+                for row in db_results:
+                    sku = row[0]
+                    if sku in sku_map:
+                        product = sku_map[sku]
+                        product['technical_drawings'] = row[1] if row[1] else []
+                        product['documents'] = row[2] if row[2] else []
+                        product['specifications'] = row[3] if row[3] else {}
+                        product['images'] = row[4] if row[4] else []
+                        product['datasheet_url'] = row[5]
+                        
+        except Exception as e:
+            logger.error(f"Failed to fetch metadata from DB: {e}")
+            # Fallback: return what we have from Milvus
+        
+        return milvus_results
 
     def index_product_batch(self, products: List[Dict]):
         """

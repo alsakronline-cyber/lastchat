@@ -124,6 +124,7 @@ export const ChatLayout = () => {
                     setMessages(prev => [...prev, {
                         role: 'assistant',
                         content: data.response,
+                        sources: data.sources,
                         timestamp: new Date().toISOString()
                     }]);
                     // Refresh sessions to update "Last Updated" order if needed
@@ -189,8 +190,8 @@ export const ChatLayout = () => {
                                 key={session.id}
                                 onClick={() => setCurrentSessionId(session.id)}
                                 className={`w-full text-left p-3 rounded-xl transition-all duration-200 flex items-center gap-3 group border border-transparent ${currentSessionId === session.id
-                                        ? 'bg-white/10 text-white border-white/10 shadow-lg'
-                                        : 'text-gray-400 hover:text-white glass-panel-hover'
+                                    ? 'bg-white/10 text-white border-white/10 shadow-lg'
+                                    : 'text-gray-400 hover:text-white glass-panel-hover'
                                     }`}
                             >
                                 <MessageSquare className={`w-4 h-4 transition-colors ${currentSessionId === session.id ? 'text-primary' : 'text-gray-600 group-hover:text-primary'}`} />
@@ -262,10 +263,63 @@ export const ChatLayout = () => {
                                 className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                             >
                                 <div className={`p-5 rounded-3xl max-w-[85%] md:max-w-[75%] shadow-xl backdrop-blur-sm border border-white/5 leading-relaxed ${msg.role === 'user'
-                                        ? 'bg-gradient-to-br from-primary to-blue-600 text-white rounded-br-none'
-                                        : 'glass-panel rounded-bl-none text-gray-100'
+                                    ? 'bg-gradient-to-br from-primary to-blue-600 text-white rounded-br-none'
+                                    : 'glass-panel rounded-bl-none text-gray-100'
                                     }`}>
                                     {msg.content}
+
+                                    {/* Rich Source Display (Live View) */}
+                                    {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
+                                        <div className="mt-6 pt-4 border-t border-white/10 space-y-4">
+                                            <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2"> Referenced Products</p>
+                                            <div className="grid grid-cols-1 gap-3">
+                                                {msg.sources.map((source: any, sIdx: number) => (
+                                                    <div key={sIdx} className="bg-black/20 rounded-xl p-3 border border-white/5 hover:border-primary/30 transition-colors">
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <div>
+                                                                <h4 className="font-bold text-sm text-primary">{source.name}</h4>
+                                                                <span className="text-xs text-gray-400 font-mono">{source.sku}</span>
+                                                            </div>
+                                                            <span className="text-xs bg-white/10 px-2 py-0.5 rounded text-gray-300">{Math.round((source.score || 0) * 100)}% Match</span>
+                                                        </div>
+
+                                                        {/* Technical Drawing Preview */}
+                                                        {source.technical_drawings && source.technical_drawings.length > 0 && (
+                                                            <div className="mb-3 bg-white/5 rounded-lg p-2 flex justify-center">
+                                                                <img
+                                                                    src={source.technical_drawings[0]}
+                                                                    alt="Technical Drawing"
+                                                                    className="max-h-32 object-contain opacity-90 hover:opacity-100 transition-opacity"
+                                                                />
+                                                            </div>
+                                                        )}
+
+                                                        <div className="flex flex-wrap gap-2 mt-2">
+                                                            {/* Datasheet Link */}
+                                                            {source.documents && source.documents.length > 0 && (
+                                                                <a
+                                                                    href={source.documents[0].url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-xs flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2 py-1 rounded transition-colors text-blue-300"
+                                                                >
+                                                                    <FileText className="w-3 h-3" />
+                                                                    Datasheet
+                                                                </a>
+                                                            )}
+                                                            {/* Specs Indicator */}
+                                                            {source.specifications && Object.keys(source.specifications).length > 0 && (
+                                                                <span className="text-xs flex items-center gap-1 bg-white/5 px-2 py-1 rounded text-gray-400 cursor-help" title={JSON.stringify(source.specifications, null, 2)}>
+                                                                    <Menu className="w-3 h-3" />
+                                                                    {Object.keys(source.specifications).length} Specs
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </motion.div>
                         ))

@@ -20,6 +20,11 @@ class ProductSource(BaseModel):
     sku: str
     category: Optional[str] = None
     score: Optional[float] = None
+    technical_drawings: Optional[List[str]] = []
+    documents: Optional[List[Dict[str, Any]]] = []
+    specifications: Optional[Dict[str, Any]] = {}
+    images: Optional[List[str]] = []
+    datasheet_url: Optional[str] = None
 
 class RecommendationResponse(BaseModel):
     answer: str
@@ -55,7 +60,12 @@ async def get_recommendation(request: RecommendationRequest):
                 name=doc.get("name", "Unknown"),
                 sku=doc.get("sku", "Unknown"),
                 category=doc.get("category"),
-                score=doc.get("score")
+                score=doc.get("score"),
+                technical_drawings=doc.get("technical_drawings", []),
+                documents=doc.get("documents", []),
+                specifications=doc.get("specifications", {}),
+                images=doc.get("images", []),
+                datasheet_url=doc.get("datasheet_url")
             ))
             
         return RecommendationResponse(
