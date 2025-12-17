@@ -103,6 +103,9 @@ class QuotationGenerator:
             
             # Formatting Description
             desc = f"<b>{item.get('name', 'Product')}</b>"
+            description = item.get('description')
+            if description:
+                desc += f"<br/><font size=9>{description}</font>"
             if item.get('sku'):
                 desc += f"<br/><font size=8 color=gray>Part No: {item.get('sku')}</font>"
             
