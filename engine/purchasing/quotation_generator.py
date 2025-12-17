@@ -65,11 +65,18 @@ class QuotationGenerator:
         elements.append(Spacer(1, 0.2 * inch))
 
         # Info Table: Date/Ref (Right) | Customer (Left)
+        company = start_data.get('company_name', '')
+        phone = start_data.get('phone', '')
+        
         customer_text = f"""
         <b>BILL TO:</b><br/>
         {start_data.get('customer_name', 'Valued Customer')}<br/>
-        {start_data.get('customer_email', '')}<br/>
         """
+        if company:
+            customer_text += f"{company}<br/>"
+        customer_text += f"{start_data.get('customer_email', '')}<br/>"
+        if phone:
+            customer_text += f"Phone: {phone}<br/>"
         
         meta_text = f"""
         <b>Date:</b> {datetime.now().strftime('%d %b, %Y')}<br/>

@@ -11,26 +11,46 @@ logger = logging.getLogger(__name__)
 generator = QuotationGenerator()
 
 # Request Model
+class BillTo(BaseModel):
+    name: str
+    company_name: Optional[str] = None
+    address: Optional[str] = None
+    email: EmailStr
+    phone: Optional[str] = None
+
 class QuotationItem(BaseModel):
-    sku: str
-    name: Optional[str] = "Product"
-    qty: int = 1
+    name: str
+    description: Optional[str] = None
+    quantity: int = 1
+    sku: Optional[str] = None
 
 class QuotationRequest(BaseModel):
-    customer_name: str     # Added customer name
-    customer_email: EmailStr
+    quotation_id: Optional[str] = None
+    bill_to: BillTo
     items: List[QuotationItem]
 
 @router.post("/quotations", summary="Generate a PDF Quotation")
 async def generate_quotation(request: QuotationRequest):
     try:
-        data = request.dict()
-        # Normalization for generator
-        for item in data['items']:
-             # Ensure correct keys for generator if needed
-             pass
+        # Transform to generator format
+        generator_data = {
+            'customer_name': request.bill_to.name,
+            'customer_email': request.bill_to.email,
+            'company_name': request.bill_to.company_name,
+            'phone': request.bill_to.phone,
+            'address': request.bill_to.address,
+            'items': [
+                {
+                    'name': item.name,
+                    'sku': item.sku or '',
+                    'qty': item.quantity,
+                    'description': item.description
+                }
+                for item in request.items
+            ]
+        }
 
-        filepath = generator.generate_quotation(data)
+        filepath = generator.generate_quotation(generator_data)
         
         if not os.path.exists(filepath):
             raise HTTPException(status_code=500, detail="Failed to generate PDF")
