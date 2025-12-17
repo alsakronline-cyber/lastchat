@@ -12,8 +12,9 @@ export const Signup = () => {
     const [loading, setLoading] = useState(false);
 
     const { login } = useAuth();
+    const { login } = useAuth();
     const navigate = useNavigate();
-    const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+    const API_URL = '/api/v1';
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

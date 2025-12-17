@@ -21,7 +21,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+    // Use relative path to leverage Vite proxy
+    const API_URL = '/api/v1';
 
     useEffect(() => {
         const token = localStorage.getItem('token');
