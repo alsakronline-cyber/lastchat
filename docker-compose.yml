@@ -145,6 +145,17 @@ services:
       - automation-net
     command: uvicorn api.server:app --host 0.0.0.0 --port 8000 --reload
 
+  # 5.5 Browser Automation (Selenium)
+  selenium:
+    image: selenium/standalone-chrome:latest
+    container_name: automation-selenium
+    ports:
+      - "4444:4444"
+      - "7900:7900" 
+    networks:
+      - automation-net
+    shm_size: 2gb
+
   # 6. Test UI (Streamlit)
   ui:
     build: .

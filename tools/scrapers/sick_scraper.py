@@ -37,10 +37,14 @@ class SickScraper(BaseScraper):
         chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         
         try:
-            # First try remote (docker)
-            # driver = webdriver.Remote(command_executor='http://selenium:4444/wd/hub', options=chrome_options)
-            driver = webdriver.Chrome(options=chrome_options) 
-        except Exception:
+            # Connect to Docker Selenium (localhost:4444)
+            logger.info("Connecting to Remote Selenium (Docker)...")
+            driver = webdriver.Remote(
+                command_executor='http://localhost:4444/wd/hub',
+                options=chrome_options
+            )
+        except Exception as e:
+            logger.warning(f"Remote Selenium failed, trying local Chrome: {e}")
             driver = webdriver.Chrome(options=chrome_options)
             
         return driver
