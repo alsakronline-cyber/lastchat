@@ -5,7 +5,7 @@ import logging
 import os
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from api.routes import recommendations, documents, contacts, quotations
+from api.routes import recommendations, documents, contacts, quotations, auth
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
@@ -30,6 +30,7 @@ app.add_middleware(
 )
 
 # Include Routers
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(recommendations.router, prefix="/api/v1", tags=["Recommendations"])
 app.include_router(documents.router, prefix="/api/v1", tags=["Documents"])
 app.include_router(contacts.router, prefix="/api/v1", tags=["Contacts"])
