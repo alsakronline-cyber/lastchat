@@ -165,12 +165,74 @@ class SickScraper(BaseScraper):
 
         # 6. Datasheet / PDF
         # Look specifically for datasheet links
-        pdf_link = soup.find('a', href=lambda h: h and '.pdf' in h and ('datasheet' in h.lower() or 'data sheet' in h.lower()))
-        if pdf_link:
-            href = pdf_link['href']
-            product['datasheet_url'] = "https://www.sick.com" + href if not href.startswith('http') else href
-        else:
-            product['datasheet_url'] = None
+        # 6. Documents (Datasheets, CAD, etc.)
+        documents = []
+        # Find all PDF links or download links
+        # SICK usually puts them in a specific 'Downloads' section or under 'Technical data'
+        doc_links = soup.select('a[href$=".pdf"]')
+        for link in doc_links:
+            href = link.get('href')
+            if not href: continue
+            
+            # Normalize
+            full_url = "https://www.sick.com" + href if href.startswith('/') else href
+            
+            # Title
+            title = link.get_text(strip=True) or link.get('title') or "Document"
+            
+            # Categorize document
+            doc_type = "other"
+            lower_href = href.lower()
+            lower_title = title.lower()
+            
+            if 'datasheet' in lower_href or 'data sheet' in lower_title:
+                doc_type = "datasheet"
+            elif 'manual' in lower_href or 'operating instructions' in lower_title:
+                 doc_type = "manual"
+            elif 'cad' in lower_href:
+                 doc_type = "cad"
+                 
+            documents.append({
+                "title": title,
+                "url": full_url,
+                "type": doc_type
+            })
+            
+        product['documents'] = documents
+        
+        # Backwards compatibility
+        ds = next((d for d in documents if d['type'] == 'datasheet'), None)
+        product['datasheet_url'] = ds['url'] if ds else None
+
+        # 7. Technical Drawings / Diagrams
+        # Often mixed with images, but sometimes separate. 
+        # Check for images with specific classes or alt text indicating a drawing
+        technical_drawings = []
+        
+        # Re-scan images for specific markers
+        all_imgs = soup.find_all('img')
+        for img in all_imgs:
+            src = img.get('src') or img.get('data-src')
+            if not src: continue
+            
+            alt = (img.get('alt') or "").lower()
+            src_lower = src.lower()
+            
+            if 'dimension' in alt or 'drawing' in alt or 'diagram' in alt or 'connection' in alt:
+                if not src.startswith('http'):
+                    src = "https://www.sick.com" + src
+                technical_drawings.append(src)
+                
+        product['technical_drawings'] = list(set(technical_drawings))
+        
+        # 8. Custom Data
+        # Any other metadata we can find, e.g., features lists
+        custom_data = {}
+        features_list = soup.select('.product-features li')
+        if features_list:
+            custom_data['features'] = [f.get_text(strip=True) for f in features_list]
+            
+        product['custom_data'] = custom_data
 
         return [product]
 
@@ -299,11 +361,15 @@ class SickScraper(BaseScraper):
                     stmt = text("""
                         INSERT INTO products (
                             sku_id, product_name, category, family_group, 
-                            description, specifications, images, datasheet_url
+                            description, specifications, images, 
+                            technical_drawings, documents, custom_data,
+                            datasheet_url
                         )
                         VALUES (
                             :sku_id, :product_name, :category, :family_group,
-                            :description, :specifications, :images, :datasheet_url
+                            :description, :specifications, :images, 
+                            :technical_drawings, :documents, :custom_data,
+                            :datasheet_url
                         )
                         ON CONFLICT (sku_id) DO UPDATE SET
                             product_name = EXCLUDED.product_name,
@@ -312,6 +378,9 @@ class SickScraper(BaseScraper):
                             description = EXCLUDED.description,
                             specifications = EXCLUDED.specifications,
                             images = EXCLUDED.images,
+                            technical_drawings = EXCLUDED.technical_drawings,
+                            documents = EXCLUDED.documents,
+                            custom_data = EXCLUDED.custom_data,
                             datasheet_url = EXCLUDED.datasheet_url,
                             updated_at = NOW()
                     """)
@@ -324,6 +393,9 @@ class SickScraper(BaseScraper):
                         "description": p.get("description"),
                         "specifications": json.dumps(p.get("specifications", {})),
                         "images": json.dumps(p.get("images", [])),
+                        "technical_drawings": json.dumps(p.get("technical_drawings", [])),
+                        "documents": json.dumps(p.get("documents", [])),
+                        "custom_data": json.dumps(p.get("custom_data", {})),
                         "datasheet_url": p.get("datasheet_url")
                     })
                     conn.commit()

@@ -58,9 +58,15 @@ class Product(Base):
     family_group = Column(String) # E.g., "G6"
     manufacturer = Column(String, default="SICK")
     description = Column(String)
+    
+    # Rich Data Fields
     specifications = Column(JSON) # Detailed Key-Value pairs
     images = Column(JSON) # List of image URLs
-    datasheet_url = Column(String)
+    technical_drawings = Column(JSON) # List of drawing URLs
+    documents = Column(JSON) # List of {title, url} for PDF datasheets etc
+    custom_data = Column(JSON) # Any extra scraped data
+    
+    datasheet_url = Column(String) # Keep for backward compatibility or main datasheet
     
     # Search & RAG fields
     embedding_text = Column(String) # Content used for embedding
