@@ -4,7 +4,7 @@ import logging
 from sqlalchemy import create_engine, text
 
 # Add project root to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from engine.embeddings.embedding_model import EmbeddingModel
 from engine.embeddings.vector_indexer import VectorIndexer
