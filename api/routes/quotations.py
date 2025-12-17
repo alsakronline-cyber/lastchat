@@ -13,9 +13,8 @@ generator = QuotationGenerator()
 # Request Model
 class QuotationItem(BaseModel):
     sku: str
-    name: str = "Product"  # Added name
-    qty: int = 1         # Renamed from quantity for consistency
-    price: float = 0.0     # Added price
+    name: Optional[str] = "Product"
+    qty: int = 1
 
 class QuotationRequest(BaseModel):
     customer_name: str     # Added customer name

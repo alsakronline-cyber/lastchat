@@ -26,21 +26,7 @@ class RecommendationResponse(BaseModel):
     confidence: float
     sources: List[ProductSource]
 
-# Singleton instances (lazy loading handled in classes usually, but good to init once)
-_chain = None
-_scorer = None
-
-def get_chain():
-    global _chain
-    if _chain is None:
-        _chain = RecommendationChain()
-    return _chain
-
-def get_scorer():
-    global _scorer
-    if _scorer is None:
-        _scorer = ConfidenceScorer()
-    return _scorer
+from api.dependencies import get_rag_chain, get_confidence_scorer
 
 @router.post("/recommend", response_model=RecommendationResponse)
 async def get_recommendation(request: RecommendationRequest):
@@ -53,8 +39,8 @@ async def get_recommendation(request: RecommendationRequest):
     logger.info(f"API Recommendation Request: {request.query}")
     
     try:
-        chain = get_chain()
-        scorer = get_scorer()
+        chain = get_rag_chain()
+        scorer = get_confidence_scorer()
         
         # Run RAG
         result = chain.get_recommendation(request.query, top_k=request.top_k)

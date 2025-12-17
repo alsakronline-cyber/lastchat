@@ -72,10 +72,21 @@ def chat_interaction(session_id: int, message: MessageBase, db: Session = Depend
     user_msg = ChatMessage(session_id=session_id, role="user", content=message.content)
     db.add(user_msg)
     
-    # 2. Logic to get AI Response (Placeholder for now, will connect to Recommendation Engine)
-    # TODO: Call RAG Engine here
-    ai_response_text = f"Echo: {message.content}. (Real AI coming soon)"
-    
+    # 2. Get AI Response from RAG Engine
+    try:
+        from api.dependencies import get_rag_chain
+        chain = get_rag_chain()
+        result = chain.get_recommendation(message.content)
+        ai_response_text = result.get("answer", "I'm sorry, I couldn't process that.")
+        
+        # Optional: Append sources if helpful (for now just text)
+        if result.get("source_documents"):
+             ai_response_text += "\n\n**Sources:**\n" + "\n".join([f"- {doc.get('name')} ({doc.get('sku')})" for doc in result.get("source_documents")[:3]])
+
+    except Exception as e:
+        print(f"RAG Error: {e}")
+        ai_response_text = "I encountered an error processing your request. Please try again."
+
     # 3. Save AI Response
     ai_msg = ChatMessage(session_id=session_id, role="assistant", content=ai_response_text)
     db.add(ai_msg)

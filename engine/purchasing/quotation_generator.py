@@ -88,14 +88,11 @@ class QuotationGenerator:
         elements.append(Spacer(1, 0.4 * inch))
 
         # --- 3. ITEMS TABLE ---
-        data = [['#', 'Description', 'Qty', 'Unit Price', 'Total']]
-        total_amount = 0.0
-
+        # Columns: # | Description | Qty
+        data = [['#', 'Description', 'Qty']]
+        
         for i, item in enumerate(start_data.get('items', []), 1):
             qty = float(item.get('qty', 1))
-            price = float(item.get('price', 0.0))
-            line_total = qty * price
-            total_amount += line_total
             
             # Formatting Description
             desc = f"<b>{item.get('name', 'Product')}</b>"
@@ -105,11 +102,10 @@ class QuotationGenerator:
             data.append([
                 str(i),
                 Paragraph(desc, self.styles['Normal']),
-                str(int(qty)),
-                f"${price:,.2f}",
-                f"${line_total:,.2f}"
+                str(int(qty))
             ])
 
+        # Styling
         # Styling
         t_style = TableStyle([
             # Header
@@ -124,33 +120,16 @@ class QuotationGenerator:
             # Body
             ('ALIGN', (0, 1), (0, -1), 'CENTER'), # ID Center
             ('ALIGN', (2, 1), (2, -1), 'CENTER'), # Qty Center
-            ('ALIGN', (3, 1), (-1, -1), 'RIGHT'), # Prices Right
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e0e0e0')),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9f9f9')]),
         ])
         
-        table = Table(data, colWidths=[0.5*inch, 3.5*inch, 0.7*inch, 1.0*inch, 1.0*inch])
+        table = Table(data, colWidths=[0.5*inch, 4.5*inch, 0.7*inch])
         table.setStyle(t_style)
         elements.append(table)
 
-        # --- 4. TOTALS SECTION ---
-        elements.append(Spacer(1, 0.2 * inch))
-        total_data = [
-            ['Subtotal:', f"${total_amount:,.2f}"],
-            ['Tax (0%):', "$0.00"],
-            ['GRAND TOTAL:', f"${total_amount:,.2f}"]
-        ]
-        
-        total_table = Table(total_data, colWidths=[5.5*inch, 1.2*inch])
-        total_table.setStyle(TableStyle([
-            ('ALIGN', (0,0), (-1,-1), 'RIGHT'),
-            ('FONTNAME', (0,-1), (-1,-1), 'Helvetica-Bold'), # Grand Total Bold
-            ('FONTSIZE', (0,-1), (-1,-1), 12),
-            ('TEXTCOLOR', (0,-1), (-1,-1), colors.HexColor('#003366')),
-            ('LINEABOVE', (0,-1), (-1,-1), 1, colors.black),
-        ]))
-        elements.append(total_table)
+
 
         # --- 5. FOOTER & TERMS ---
         elements.append(Spacer(1, 1.0 * inch))
