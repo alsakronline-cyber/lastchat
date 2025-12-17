@@ -13,6 +13,10 @@ docker-compose up -d --build
 echo "Waiting for PostgreSQL to be ready..."
 sleep 10 # Basic wait, could be improved with healthcheck loop
 
+# 1.5 Pull LLM Model
+echo "Step 1.5: Pulling LLM Model (tinyllama)..."
+docker-compose exec -T ollama ollama pull tinyllama
+
 # 2. Run Migrations
 echo "Step 2: Applying Database Migrations..."
 # Running alembic via the api container to the SPECIFIC new revision
