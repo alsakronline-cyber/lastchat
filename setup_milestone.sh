@@ -15,8 +15,9 @@ sleep 10 # Basic wait, could be improved with healthcheck loop
 
 # 2. Run Migrations
 echo "Step 2: Applying Database Migrations..."
-# Running alembic via the api container or locally if python is set up
-docker-compose exec -T api alembic upgrade head
+# Running alembic via the api container to the SPECIFIC new revision
+# This avoids "Multiple heads" error if there are stray migrations in the user's env
+docker-compose exec -T api alembic upgrade 2e9c2f6d0a7b
 
 # 3. Test Scraper
 echo "Step 3: Running Test Scrape..."
