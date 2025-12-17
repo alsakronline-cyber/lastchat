@@ -64,7 +64,7 @@ def get_messages(session_id: int, db: Session = Depends(get_db), user: User = De
 @router.post("/sessions/{session_id}/chat")
 def chat_interaction(session_id: int, message: MessageBase, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     # Verify ownership
-    session = db.query(ChatSession).filter(ChatSession.id == session_id, user_id=user.id).first()
+    session = db.query(ChatSession).filter(ChatSession.id == session_id, ChatSession.user_id == user.id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 

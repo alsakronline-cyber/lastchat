@@ -10,29 +10,128 @@ export const ChatLayout = () => {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    // Mock chat history for sidebar
-    const history = [
-        { id: 1, title: 'Previous Conversation 1', date: 'Today' },
-        { id: 2, title: 'Quote for SICK Sensor', date: 'Yesterday' },
-    ];
+    const [sessions, setSessions] = useState<any[]>([]);
+    const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
+
+    // Initial load: Fetch sessions
+    React.useEffect(() => {
+        fetchSessions();
+    }, []);
+
+    // Load messages when session changes
+    React.useEffect(() => {
+        if (currentSessionId) {
+            fetchMessages(currentSessionId);
+        } else {
+            setMessages([]);
+        }
+    }, [currentSessionId]);
+
+    const fetchSessions = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/v1/chat/sessions', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setSessions(data);
+            }
+        } catch (err) {
+            console.error("Failed to fetch sessions", err);
+        }
+    };
+
+    const fetchMessages = async (sessionId: number) => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/v1/chat/sessions/${sessionId}/messages`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setMessages(data);
+            }
+        } catch (err) {
+            console.error("Failed to fetch messages", err);
+        }
+    };
+
+    const createNewSession = async (firstMessage: string) => {
+        try {
+            const token = localStorage.getItem('token');
+            // Create session with first message as title (truncated)
+            const title = firstMessage.substring(0, 30) + (firstMessage.length > 30 ? '...' : '');
+            const res = await fetch('/api/v1/chat/sessions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ title })
+            });
+            if (res.ok) {
+                const newSession = await res.json();
+                setSessions([newSession, ...sessions]);
+                setCurrentSessionId(newSession.id);
+                return newSession.id;
+            }
+        } catch (err) {
+            console.error("Failed to create session", err);
+        }
+        return null;
+    };
 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!input.trim()) return;
 
-        const userMsg = { role: 'user', content: input };
-        setMessages([...messages, userMsg]);
+        const messageContent = input;
         setInput('');
         setIsLoading(true);
 
-        // TODO: Connect to actual backend API
-        setTimeout(() => {
-            setMessages(prev => [...prev, {
-                role: 'assistant',
-                content: "I'm the AI Assistant. Backend integration is coming next!"
-            }]);
+        // Optimistic update
+        const userMsg = { role: 'user', content: messageContent, timestamp: new Date().toISOString() };
+        setMessages(prev => [...prev, userMsg]);
+
+        try {
+            let sessionId = currentSessionId;
+            if (!sessionId) {
+                sessionId = await createNewSession(messageContent);
+            }
+
+            if (sessionId) {
+                const token = localStorage.getItem('token');
+                const res = await fetch(`/api/v1/chat/sessions/${sessionId}/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        role: 'user',
+                        content: messageContent,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    // Add AI response
+                    setMessages(prev => [...prev, {
+                        role: 'assistant',
+                        content: data.response,
+                        timestamp: new Date().toISOString()
+                    }]);
+                    // Refresh sessions to update "Last Updated" order if needed
+                    fetchSessions();
+                }
+            }
+        } catch (error) {
+            console.error("Chat error:", error);
+        } finally {
             setIsLoading(false);
-        }, 1000);
+        }
     };
 
     return (
@@ -70,17 +169,24 @@ export const ChatLayout = () => {
                 </div>
 
                 <div className="p-4">
-                    <button className="w-full btn-primary flex items-center justify-center gap-2 mb-6">
+                    <button
+                        onClick={() => { setCurrentSessionId(null); setMessages([]); }}
+                        className="w-full btn-primary flex items-center justify-center gap-2 mb-6"
+                    >
                         <Plus className="w-4 h-4" />
                         New Chat
                     </button>
 
                     <div className="space-y-2">
                         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">History</h3>
-                        {history.map((item) => (
-                            <button key={item.id} className="w-full text-left p-3 rounded-lg hover:bg-white/5 transition-colors flex items-center gap-3 text-gray-300 hover:text-white group">
-                                <MessageSquare className="w-4 h-4 text-gray-500 group-hover:text-primary transition-colors" />
-                                <span className="truncate text-sm">{item.title}</span>
+                        {sessions.map((session) => (
+                            <button
+                                key={session.id}
+                                onClick={() => setCurrentSessionId(session.id)}
+                                className={`w-full text-left p-3 rounded-lg hover:bg-white/5 transition-colors flex items-center gap-3 group ${currentSessionId === session.id ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white'}`}
+                            >
+                                <MessageSquare className={`w-4 h-4 transition-colors ${currentSessionId === session.id ? 'text-primary' : 'text-gray-500 group-hover:text-primary'}`} />
+                                <span className="truncate text-sm">{session.title}</span>
                             </button>
                         ))}
                     </div>
