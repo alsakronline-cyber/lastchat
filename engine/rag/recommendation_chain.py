@@ -60,6 +60,19 @@ class RecommendationChain:
             logger.error(f"Retrieval failed: {e}")
             return {"answer": "I encountered an error searching for products." if lang == 'en' else "حدث خطأ أثناء البحث عن المنتجات.", "source_documents": [], "detected_language": lang}
         
+        # 1.1 Short-circuit if no products found (Prevent Hallucinations)
+        if not retrieved_products:
+            logger.info("No products found in vector DB. Short-circuiting LLM.")
+            no_match_msg = "I could not find any matching products in the database."
+            if lang == 'ar':
+                no_match_msg = "لم أتمكن من العثور على أي منتجات مطابقة في قاعدة البيانات."
+            
+            return {
+                "answer": no_match_msg,
+                "source_documents": [],
+                "detected_language": lang
+            }
+
         # 2. Generate Answer
         try:
             # We invoke the chain manually to control the context injection clearly
