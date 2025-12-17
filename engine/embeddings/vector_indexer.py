@@ -19,7 +19,7 @@ class VectorIndexer:
     Manages the Milvus vector database connection and indexing operations.
     """
     
-    def __init__(self, host: str = "milvus-standalone", port: str = "19530", collection_name: str = "products"):
+    def __init__(self, host: str = "localhost", port: str = "19530", collection_name: str = "products"):
         self.host = os.getenv("MILVUS_HOST", host)
         self.port = os.getenv("MILVUS_PORT", port)
         self.collection_name = collection_name
