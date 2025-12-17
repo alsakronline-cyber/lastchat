@@ -32,7 +32,7 @@ class SickScraper(BaseScraper):
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--remote-debugging-port=9222")
-        chrome_options.binary_location = "/usr/bin/chromium"
+        # chrome_options.binary_location = "/usr/bin/chromium" # Do not set this for Remote WebDriver
         chrome_options.add_argument("--window-size=1920,1080")
         chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         
@@ -286,7 +286,7 @@ class SickScraper(BaseScraper):
         
         DB_USER = os.getenv("POSTGRES_USER", "postgres")
         DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "secure_password")
-        DB_HOST = os.getenv("POSTGRES_HOST", "postgres")
+        DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
         DB_PORT = os.getenv("POSTGRES_PORT", "5432")
         DB_NAME = os.getenv("POSTGRES_DB", "automation_engine")
         
