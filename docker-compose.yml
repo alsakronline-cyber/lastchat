@@ -99,27 +99,19 @@ services:
       timeout: 5s
       retries: 5
 
-  # 4. LLM Engine (Ollama)
-  ollama:
-    image: ollama/ollama:latest
-    container_name: automation-ollama
-    restart: unless-stopped
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_models:/root/.ollama
-    networks:
-      - automation-net
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
-    # Note: GPU section is optional, remove if CPU-only host
+  # 4. LLM Engine (Ollama) - Temporarily disabled for disk space
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: automation-ollama
+  #   restart: unless-stopped
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_models:/root/.ollama
+  #   networks:
+  #     - automation-net
 
-    # 5. API Gateway & Application
+  # 5. API Gateway & Application
   api:
     build: .
     container_name: automation-engine
@@ -131,7 +123,7 @@ services:
       - MILVUS_HOST=milvus
       - MILVUS_PORT=19530
       - REDIS_URL=redis://redis:6379/0
-      - OLLAMA_BASE_URL=http://ollama:11434
+      # - OLLAMA_BASE_URL=http://ollama:11434
     volumes:
       - .:/app
     depends_on:
@@ -151,7 +143,7 @@ services:
     container_name: automation-selenium
     ports:
       - "4444:4444"
-      - "7900:7900" 
+      - "7900:7900"
     networks:
       - automation-net
     shm_size: 2gb
@@ -171,28 +163,27 @@ services:
       - automation-net
     command: >
       sh -c "pip install -r ui/requirements.txt && python -m streamlit run ui/app.py --server.port 8501 --server.address 0.0.0.0"
+  # 7. Monitoring (Prometheus & Grafana) - Temporarily disabled for disk space
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: automation-prometheus
+  #   volumes:
+  #     - ./monitoring/prometheus_config.yml:/etc/prometheus/prometheus.yml
+  #     - prometheus_data:/prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   networks:
+  #     - automation-net
 
-  # 7. Monitoring (Prometheus & Grafana)
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: automation-prometheus
-    volumes:
-      - ./monitoring/prometheus_config.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
-    networks:
-      - automation-net
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: automation-grafana
-    volumes:
-      - grafana_data:/var/lib/grafana
-    ports:
-      - "3000:3000"
-    networks:
-      - automation-net
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: automation-grafana
+  #   volumes:
+  #     - grafana_data:/var/lib/grafana
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - automation-net
 
 networks:
   automation-net:
