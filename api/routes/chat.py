@@ -5,7 +5,8 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from api.models import ChatSession, ChatMessage, User
-from api.utils.auth import get_db, oauth2_scheme, decode_token
+from api.utils.auth import oauth2_scheme, decode_token
+from api.database import get_db
 
 router = APIRouter()
 
