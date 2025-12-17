@@ -19,7 +19,7 @@ class LLMConfig:
         if cls._instance is None:
             cls._instance = super(LLMConfig, cls).__new__(cls)
             cls._instance.model_name = os.getenv("OLLAMA_MODEL", "tinyllama") # Default to tinyllama for speed/size
-            cls._instance.base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+            cls._instance.base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
             cls._instance.temperature = float(os.getenv("LLM_TEMPERATURE", "0.2"))
             cls._instance._llm = None
         return cls._instance
