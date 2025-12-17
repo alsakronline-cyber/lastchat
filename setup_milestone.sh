@@ -22,7 +22,8 @@ docker-compose exec -T api alembic upgrade 2e9c2f6d0a7b
 # 3. Test Scraper
 echo "Step 3: Running Test Scrape..."
 # Run a sample scrape of SICK products to verify rich data extraction
-docker-compose exec -T api python tools/scrapers/sick_scraper.py
+# Run as module to allow relative imports
+docker-compose exec -T api python -m tools.scrapers.sick_scraper
 
 # 4. Ingestion & RAG Verification
 echo "Step 4: Running Data Ingestion & RAG Verification..."
