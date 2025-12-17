@@ -26,11 +26,11 @@ echo "Step 3: Running Test Scrape..."
 docker-compose exec -T api python -m tools.scrapers.sick_scraper
 
 # 4. Ingestion & RAG Verification
-echo "Step 4: Running Data Ingestion & RAG Verification..."
-# (If there is a separate ingestion script, run it here. 
-# sick_scraper.py currently saves directly to DB, so we just verify DB)
+echo "Step 4: Syncing DB to Milvus (Embedding)..."
+docker-compose exec -T api python -m tools.sync_db_to_milvus
 
-# Simple Python script to verify data in DB
+# 5. RAG Verification
+echo "Step 5: Testing RAG Retrieval..."
 docker-compose exec -T api python -c "
 from sqlalchemy import create_engine, text
 import os

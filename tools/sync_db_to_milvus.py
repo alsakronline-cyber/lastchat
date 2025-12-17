@@ -21,7 +21,10 @@ def sync_products():
     DB_PORT = os.getenv("POSTGRES_PORT", "5432")
     DB_NAME = os.getenv("POSTGRES_DB", "automation_engine")
     
-    DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    # Prioritize DATABASE_URL if set
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    if not DATABASE_URL:
+        DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     
     try:
         engine = create_engine(DATABASE_URL)
@@ -66,8 +69,9 @@ def sync_products():
     logger.info(f"Generated {len(embeddings)} embeddings.")
 
     # 4. Insert into Milvus
-    logger.info("Connecting to Milvus...")
-    indexer = VectorIndexer(host="localhost") # Default to local
+    milvus_host = os.getenv("MILVUS_HOST", "localhost")
+    logger.info(f"Connecting to Milvus at {milvus_host}...")
+    indexer = VectorIndexer(host=milvus_host)
     indexer.insert_products(products, embeddings)
     
     logger.info("Sync Complete!")
