@@ -37,6 +37,7 @@ export const Signup = () => {
             login(loginResponse.data.access_token);
             navigate('/');
         } catch (err: any) {
+            console.error(err);
             if (err.response && err.response.data && err.response.data.detail) {
                 setError(err.response.data.detail);
             } else {

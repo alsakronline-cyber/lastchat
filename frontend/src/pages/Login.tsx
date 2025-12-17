@@ -27,7 +27,8 @@ export const Login = () => {
             const response = await axios.post(`${API_URL}/auth/token`, formData);
             login(response.data.access_token);
             navigate('/');
-        } catch (err) {
+        } catch (err: any) {
+            console.error(err);
             setError('Invalid credentials. Please try again.');
         } finally {
             setLoading(false);
