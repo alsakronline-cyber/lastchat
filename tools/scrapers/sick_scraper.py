@@ -32,15 +32,16 @@ class SickScraper(BaseScraper):
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--remote-debugging-port=9222")
+        # chrome_options.add_argument("--remote-debugging-port=9222") # Often causes issues in remote/headless
         chrome_options.add_argument("--window-size=1920,1080")
         chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         
         try:
-            # Connect to Docker Selenium (localhost:4444)
-            logger.info("Connecting to Remote Selenium (Docker)...")
+            # Connect to Docker Selenium (service name 'selenium' from docker-compose)
+            selenium_host = os.getenv("SELENIUM_HOST", "selenium")
+            logger.info(f"Connecting to Remote Selenium at http://{selenium_host}:4444/wd/hub ...")
             driver = webdriver.Remote(
-                command_executor='http://localhost:4444/wd/hub',
+                command_executor=f'http://{selenium_host}:4444/wd/hub',
                 options=chrome_options
             )
         except Exception as e:
